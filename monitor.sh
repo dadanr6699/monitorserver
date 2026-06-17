@@ -87,7 +87,7 @@ top3=$(ps -eo comm,%cpu --sort=-%cpu | awk 'NR>1 && NR<=4 {
     if (length(clean_cmd) > 13) {
         clean_cmd = substr(clean_cmd, 1, 10) "..."
     }
-    printf " • %-14s ➜ %5s%%\n", clean_cmd, $2
+    printf " • %-14s➜ %5s%%\n", clean_cmd, $2
 }')
 
 # OUTPUT TAMPILAN ELEGAN
