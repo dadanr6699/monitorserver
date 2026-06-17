@@ -33,7 +33,7 @@ function getMainMenu(chatId) {
         keyboard.push([{ text: '📭 Belum ada server terdaftar', callback_data: 'none' }]);
     } else {
         servers.forEach(s => {
-            keyboard.push([{ text: `🖥️ ${s.name.toUpperCase()}`, callback_data: `start_live:${s.name}` }]);
+            keyboard.push([{ text: `🖥️  ${s.name.toUpperCase()}`, callback_data: `start_live:${s.name}` }]);
         });
     }
 
@@ -44,6 +44,16 @@ function getMainMenu(chatId) {
         }
     }
     return { inline_keyboard: keyboard };
+}
+
+function getHeaderText(chatId) {
+    const servers = getGlobalServers();
+    const isAdmin = chatId === ADMIN_ID;
+    if (isAdmin) {
+        return `👨‍💻 *ADMIN PANEL*\n🛰️ VPS Vital Monitor\n📊 Total Server: *${servers.length}*\n\n_Pilih server untuk monitoring:_`;
+    } else {
+        return `🛰️ *VPS VITAL MONITOR*\n🌐 Public Monitoring Dashboard\n📊 Total Server: *${servers.length}*\n\n_Pilih server yang ingin dipantau:_`;
+    }
 }
 
 async function fetchStats(vps) {
@@ -78,13 +88,9 @@ async function startLive(chatId, msgId, name) {
     const update = async () => {
         const stats = await fetchStats(vps);
         const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
-
-        let text;
-        if (!stats) {
-            text = `\u26a0\ufe0f SERVER OFFLINE\n\n🖥 ${name.toUpperCase()}\n⏰ Cek terakhir: ${now}`;
-        } else {
-            text = '```\n' + stats + '```';
-        }
+        const text = stats
+            ? '```\n' + stats + '```'
+            : `*\u26a0\ufe0f SERVER OFFLINE*\n\n🖥 ${name.toUpperCase()}\n⏰ Cek terakhir: ${now}`;
 
         bot.editMessageText(text, {
             chat_id: chatId,
@@ -95,29 +101,14 @@ async function startLive(chatId, msgId, name) {
     };
 
     update();
-    liveSessions[chatId] = { interval: setInterval(update, 3000), name, msgId };
+    liveSessions[chatId] = { interval: setInterval(update, 3000) };
 }
 
 bot.onText(/\/(start|vital|monitor|menu)/, async (msg) => {
     stopLive(msg.chat.id);
-    const chatId = msg.chat.id;
-    const isAdmin = chatId === ADMIN_ID;
-    const servers = getGlobalServers();
-
-    const headerText = isAdmin
-        ? `👨‍💻 *ADMIN PANEL — VPS VITAL MONITOR*
-📊 Total Server: *${servers.length}*
-
-_Pilih server untuk mulai monitoring real\-time:_`
-        : `🛰️ *VPS VITAL MONITOR*
-🌐 Public Monitoring Dashboard
-📊 Total Server: *${servers.length}*
-
-_Pilih server yang ingin dipantau:_`;
-
-    bot.sendMessage(chatId, headerText, {
-        parse_mode: 'MarkdownV2',
-        reply_markup: getMainMenu(chatId)
+    bot.sendMessage(msg.chat.id, getHeaderText(msg.chat.id), {
+        parse_mode: 'Markdown',
+        reply_markup: getMainMenu(msg.chat.id)
     });
 });
 
@@ -134,11 +125,8 @@ bot.on('callback_query', async (query) => {
         const name = data.split(':')[1];
         const vps = getGlobalServers().find(s => s.name === name);
         if (!vps) return bot.answerCallbackQuery(query.id, { text: 'VPS tidak ditemukan' });
-
         bot.answerCallbackQuery(query.id, { text: `📡 Menghubungkan ke ${name}...` });
-
-        // Tampilkan pesan loading dulu
-        bot.editMessageText(`⏳ *Menghubungkan ke server ${name.toUpperCase()}...*\n\nMohon tunggu sebentar.`, {
+        bot.editMessageText(`⏳ *Menghubungkan ke ${name.toUpperCase()}...*\nMohon tunggu sebentar.`, {
             chat_id: chatId,
             message_id: msgId,
             parse_mode: 'Markdown',
@@ -160,12 +148,7 @@ bot.on('callback_query', async (query) => {
     if (data === 'back_to_menu') {
         stopLive(chatId);
         bot.answerCallbackQuery(query.id);
-        const servers = getGlobalServers();
-        const isAdmin = chatId === ADMIN_ID;
-        const headerText = isAdmin
-            ? `👨‍💻 *ADMIN PANEL — VPS VITAL MONITOR*\n📊 Total Server: *${servers.length}*`
-            : `🛰️ *VPS VITAL MONITOR*\n📊 Total Server: *${servers.length}*`;
-        bot.editMessageText(headerText, {
+        bot.editMessageText(getHeaderText(chatId), {
             chat_id: chatId,
             message_id: msgId,
             parse_mode: 'Markdown',
@@ -240,7 +223,7 @@ bot.on('message', async (msg) => {
         saveGlobalServers(srvs);
         userState[chatId] = null;
         bot.sendMessage(chatId,
-            `✅ *VPS Berhasil Ditambahkan!*\n\n🖥 Nama : *${state.data.name}*\n🌐 IP   : \`${state.data.ip}\`\n👤 User : \`${state.data.user}\``,
+            `✅ *VPS Berhasil Ditambahkan!*\n\n🖥 Nama : *${state.data.name}*\n🌐 IP   : ${state.data.ip}\n👤 User : ${state.data.user}`,
             { parse_mode: 'Markdown', reply_markup: getMainMenu(chatId) }
         );
     }
@@ -249,4 +232,4 @@ bot.on('message', async (msg) => {
 process.on('uncaughtException', err => console.error('Uncaught:', err));
 process.on('unhandledRejection', err => console.error('Unhandled:', err));
 
-console.log('\u2705 VPS Vital Monitor Bot running...');
+console.log('✅ VPS Vital Monitor Bot running...');
