@@ -78,14 +78,19 @@ format_speed() {
 rx_spd=$(format_speed $rx_bps)
 tx_spd=$(format_speed $tx_bps)
 
-# TOP PROCESS
+# TOP PROCESS (Dibersihkan path-nya & diformat rata kanan rapi)
 top3=$(ps -eo comm,%cpu --sort=-%cpu | awk 'NR>1 && NR<=4 {
     cmd=$1
-    if(length(cmd)>13) cmd=substr(cmd,1,11)"..."
-    printf " • %-14s%s%%\n", cmd, $2
+    # Jika nama berupa path (ada slash), ambil nama file-nya saja
+    n = split(cmd, parts, "/")
+    clean_cmd = parts[n]
+    if (length(clean_cmd) > 13) {
+        clean_cmd = substr(clean_cmd, 1, 10) "..."
+    }
+    printf " • %-14s ➜ %5s%%\n", clean_cmd, $2
 }')
 
-# OUTPUT TAMPILAN ELEGAN SEBELUMNYA (Tanpa Box yang Rawan Melenceng)
+# OUTPUT TAMPILAN ELEGAN
 cat << ENDOUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    🛰️  VPS VITAL MONITOR
