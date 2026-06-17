@@ -35,33 +35,44 @@ disk_bar=$(get_bar "$disk_pct")
 # Deteksi Network Interface Utama
 net_interface="eth0"
 
-# Membaca Total Bandwidth Terpakai (GB/MB)
+# Membaca Total Bandwidth Terpakai (GB)
 rx_bytes_total=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
 tx_bytes_total=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
 
 total_rx_gb=$(echo "scale=2; $rx_bytes_total / 1024 / 1024 / 1024" | bc)
 total_tx_gb=$(echo "scale=2; $tx_bytes_total / 1024 / 1024 / 1024" | bc)
 
-# Mengukur Kecepatan Bandwidth Real-Time (Deltas 1 detik)
+# Ambil byte sebelum jeda
 rx_before=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
 tx_before=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
+
+# Jeda tepat 1 detik
 sleep 1
+
+# Ambil byte setelah jeda
 rx_after=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
 tx_after=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
 
-rx_speed=$(( (rx_after - rx_before) / 1024 ))
-tx_speed=$(( (tx_after - tx_before) / 1024 ))
+# Kalkulasi kecepatan download (RX) & upload (TX) dalam Byte per detik
+rx_speed_bps=$(( rx_after - rx_before ))
+tx_speed_bps=$(( tx_after - tx_before ))
 
-if [ $rx_speed -gt 1024 ]; then
-    rx_display="$(echo "scale=2; $rx_speed / 1024" | bc) MB/s"
+# Konversi kecepatan Download ke KB/s atau MB/s
+if [ $rx_speed_bps -ge 1048576 ]; then
+    rx_display="$(echo "scale=2; $rx_speed_bps / 1048576" | bc) MB/s"
+elif [ $rx_speed_bps -ge 1024 ]; then
+    rx_display="$(echo "scale=1; $rx_speed_bps / 1024" | bc) KB/s"
 else
-    rx_display="${rx_speed} KB/s"
+    rx_display="${rx_speed_bps} B/s"
 fi
 
-if [ $tx_speed -gt 1024 ]; then
-    tx_display="$(echo "scale=2; $tx_speed / 1024" | bc) MB/s"
+# Konversi kecepatan Upload ke KB/s atau MB/s
+if [ $tx_speed_bps -ge 1048576 ]; then
+    tx_display="$(echo "scale=2; $tx_speed_bps / 1048576" | bc) MB/s"
+elif [ $tx_speed_bps -ge 1024 ]; then
+    tx_display="$(echo "scale=1; $tx_speed_bps / 1024" | bc) KB/s"
 else
-    tx_display="${tx_speed} KB/s"
+    tx_display="${tx_speed_bps} B/s"
 fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -78,8 +89,8 @@ printf "🧠 RAM  [%-10s] %s%%\n" "$ram_bar" "$ram_pct"
 printf "💾 DISK [%-10s] %s%%\n" "$disk_bar" "$disk_pct"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📶 NETWORK TRAFFIC"
-printf " 📥 Speed DL : %s\n" "$rx_display"
-printf " 📤 Speed UL : %s\n" "$tx_display"
+printf " 📥 Download : %s\n" "$rx_display"
+printf " 📤 Upload   : %s\n" "$tx_display"
 printf " 📦 Total RX : %s GB\n" "$total_rx_gb"
 printf " 📦 Total TX : %s GB\n" "$total_tx_gb"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
