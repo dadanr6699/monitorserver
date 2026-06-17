@@ -32,24 +32,26 @@ disk_used=$(df -h / | awk 'NR==2{print $3}')
 disk_pct=$(df -h / | awk 'NR==2{print $5}' | sed 's/%//')
 disk_bar=$(get_bar "$disk_pct")
 
-# Mengukur Kecepatan Bandwidth Real-Time (Deltas 1 detik)
-# Deteksi Network Interface Utama secara otomatis
-net_interface=$(ip route | grep default | awk '{print $5}' | head -n 1)
-if [ -z "$net_interface" ]; then
-    net_interface="eth0"
-fi
+# Deteksi Network Interface Utama
+net_interface="eth0"
 
+# Membaca Total Bandwidth Terpakai (GB/MB)
+rx_bytes_total=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
+tx_bytes_total=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
+
+total_rx_gb=$(echo "scale=2; $rx_bytes_total / 1024 / 1024 / 1024" | bc)
+total_tx_gb=$(echo "scale=2; $tx_bytes_total / 1024 / 1024 / 1024" | bc)
+
+# Mengukur Kecepatan Bandwidth Real-Time (Deltas 1 detik)
 rx_before=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
 tx_before=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
 sleep 1
 rx_after=$(cat /sys/class/net/$net_interface/statistics/rx_bytes)
 tx_after=$(cat /sys/class/net/$net_interface/statistics/tx_bytes)
 
-# Hitung kecepatan transfer dalam KB/s
 rx_speed=$(( (rx_after - rx_before) / 1024 ))
 tx_speed=$(( (tx_after - tx_before) / 1024 ))
 
-# Konversi ke MB/s jika kecepatan terlalu tinggi
 if [ $rx_speed -gt 1024 ]; then
     rx_display="$(echo "scale=2; $rx_speed / 1024" | bc) MB/s"
 else
@@ -75,9 +77,11 @@ printf "🚀 CPU  [%-10s] %s%%\n" "$cpu_bar" "$cpu_load"
 printf "🧠 RAM  [%-10s] %s%%\n" "$ram_bar" "$ram_pct"
 printf "💾 DISK [%-10s] %s%%\n" "$disk_bar" "$disk_pct"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📶 NETWORK TRAFFIC (Real-time)"
-printf " 📥 Download : %s\n" "$rx_display"
-printf " 📤 Upload   : %s\n" "$tx_display"
+echo "📶 NETWORK TRAFFIC"
+printf " 📥 Speed DL : %s\n" "$rx_display"
+printf " 📤 Speed UL : %s\n" "$tx_display"
+printf " 📦 Total RX : %s GB\n" "$total_rx_gb"
+printf " 📦 Total TX : %s GB\n" "$total_tx_gb"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🔥 TOP CPU PROCESSES"
 ps -eo comm,%cpu --sort=-%cpu | head -n 4 | awk 'NR>1 { 
