@@ -104,7 +104,7 @@ bot.on('callback_query', async (query) => {
         };
 
         update();
-        liveSessions[chatId] = { interval: setInterval(update, 2000) };
+        liveSessions[chatId] = { interval: setInterval(update, 5000) };
     }
 
     if (data === "back_to_menu") {
