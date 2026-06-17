@@ -6,7 +6,12 @@ const path = require('path');
 
 const token = process.env.BOT_TOKEN;
 const ADMIN_ID = parseInt(process.env.ADMIN_ID); 
-const bot = new TelegramBot(token, { polling: true });
+
+// Mengarahkan ke Telegram Bot API Lokal di Docker
+const bot = new TelegramBot(token, { 
+    polling: true,
+    baseApiUrl: 'http://127.0.0.1:8081' // Port container docker Anda
+});
 
 const GLOBAL_SERVERS_FILE = '/root/vital/global_servers.json';
 if (!fs.existsSync(GLOBAL_SERVERS_FILE)) fs.writeFileSync(GLOBAL_SERVERS_FILE, '[]');
