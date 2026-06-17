@@ -1,10 +1,11 @@
+require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const token = '8717135661:AAG_F1NCxgWQpG6TyucEMPxhMsb2icDchSc';
-const ADMIN_ID = 1941251589; 
+const token = process.env.BOT_TOKEN;
+const ADMIN_ID = parseInt(process.env.ADMIN_ID); 
 const bot = new TelegramBot(token, { polling: true });
 
 const GLOBAL_SERVERS_FILE = '/root/vital/global_servers.json';
@@ -25,12 +26,10 @@ function getMainMenu(chatId) {
     const globalSrv = getGlobalServers();
     const keyboard = [];
 
-    // Daftar VPS yang bisa dilihat publik
     globalSrv.forEach(s => {
         keyboard.push([{ text: `🌍 VPS: ${s.name.toUpperCase()}`, callback_data: `start_live:${s.name}` }]);
     });
 
-    // KHUSUS ADMIN: Tombol Manajemen
     if (chatId === ADMIN_ID) {
         keyboard.push([{ text: "Tambah VPS Baru", callback_data: "start_add_flow" }]);
         if (globalSrv.length > 0) {
