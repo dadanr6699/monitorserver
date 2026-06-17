@@ -1,4 +1,4 @@
-# ⛩️ VITAL VPS MONITOR BOT (PUBLIC VERSION)
+# ⛩️ VITAL VPS MONITOR BOT
 
 Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK) secara **Real-time** (update setiap 2 detik) dengan desain dashboard yang elegan. Bot ini mendukung akses Admin (untuk menambah/menghapus server) dan akses Publik (untuk memantau saja).
 
