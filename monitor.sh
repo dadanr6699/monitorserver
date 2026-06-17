@@ -90,7 +90,7 @@ top3=$(ps -eo comm,%cpu --sort=-%cpu | awk 'NR>1 && NR<=4 {
 # OUTPUT
 cat << ENDOUT
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  🛰️  VPS VITAL MONITOR        ┃
+┃   🛰️  VPS VITAL MONITOR  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 📍 SYSTEM
   OS      : $os
