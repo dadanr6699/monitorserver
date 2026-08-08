@@ -55,19 +55,16 @@ function getMainMenu(chatId) {
 function getHeaderText(chatId) {
     const servers = getGlobalServers();
     const isAdmin = chatId === ADMIN_ID;
-    const badge = isAdmin ? '👨‍💻 *ADMIN PANEL*' : '🌐 *PUBLIC DASHBOARD*';
+    const badge = isAdmin ? 'Admin Panel' : 'Public Dashboard';
     return [
-        '╭───────────────────╮',
-        '   🛰️  *VITAL VPS MONITOR*',
-        '╰───────────────────╯',
-        '',
-        badge,
-        `📊 Total Server : *${servers.length}*`,
-        `🟢 Status       : *Online*`,
+        '🛰️ *VITAL VPS MONITOR*',
+        `> 👤 *Akses* : ${badge}`,
+        `> 📊 *Total Server* : ${servers.length}`,
+        `> 🟢 *Bot Status* : Running`,
         '',
         servers.length === 0
-            ? '_Belum ada server. Tambahkan VPS baru._'
-            : '_Pilih server untuk mulai memantau:_'
+            ? '_Belum ada server. Silakan tambahkan VPS baru._'
+            : '_Silakan pilih server di bawah untuk memantau:_'
     ].join('\n');
 }
 
