@@ -25,6 +25,7 @@ get_status() {
 os=$(grep -w PRETTY_NAME /etc/os-release | cut -d '"' -f2)
 uptime_str=$(uptime -p | sed 's/up //')
 ip_pub=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "N/A")
+isp_pub=$(curl -s --max-time 3 ipinfo.io/org 2>/dev/null | cut -d' ' -f2- || echo "N/A")
 load_avg=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 proc_count=$(ps aux --no-headers | wc -l)
 
@@ -106,6 +107,7 @@ cat << ENDOUT
 
 📍 SYSTEM INFO
    OS      : $os
+   ISP     : $isp_pub
    IP      : $ip_pub
    Uptime  : $uptime_str
    Load    : $load_avg
