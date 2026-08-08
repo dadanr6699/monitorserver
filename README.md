@@ -112,5 +112,5 @@ Dilisensikan di bawah [MIT License](LICENSE).
 ---
 
 ### 📞 Kontak & Support
-Telegram: [@Dadan_R01](https://t.me/Dadan_R01)
+[![Telegram](https://img.shields.io/badge/Telegram-@Dadan__R01-blue.svg?logo=telegram)](https://t.me/Dadan_R01)
 
