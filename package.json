@@ -1,14 +1,14 @@
 {
   "name": "vital",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Bot Telegram untuk monitoring VPS (CPU, RAM, Disk, Network) secara real-time",
+  "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node bot.js"
   },
-  "keywords": [],
+  "keywords": ["telegram", "bot", "vps", "monitoring"],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.4.2",

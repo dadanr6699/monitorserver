@@ -1,17 +1,23 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 const token = process.env.BOT_TOKEN;
 const ADMIN_ID = parseInt(process.env.ADMIN_ID);
 
-const bot = new TelegramBot(token, {
-    polling: true,
-    baseApiUrl: 'http://127.0.0.1:8081'
-});
+if (!token || !ADMIN_ID) {
+    console.error('❌ BOT_TOKEN dan ADMIN_ID wajib diisi di file .env');
+    process.exit(1);
+}
 
-const GLOBAL_SERVERS_FILE = '/root/vital/global_servers.json';
+const botOptions = { polling: true };
+if (process.env.BOT_API_URL) botOptions.baseApiUrl = process.env.BOT_API_URL;
+const bot = new TelegramBot(token, botOptions);
+
+const GLOBAL_SERVERS_FILE = path.join(__dirname, 'global_servers.json');
+const MONITOR_SCRIPT = path.join(__dirname, 'monitor.sh');
 if (!fs.existsSync(GLOBAL_SERVERS_FILE)) fs.writeFileSync(GLOBAL_SERVERS_FILE, '[]');
 
 let userState = {};
@@ -49,20 +55,55 @@ function getMainMenu(chatId) {
 function getHeaderText(chatId) {
     const servers = getGlobalServers();
     const isAdmin = chatId === ADMIN_ID;
-    if (isAdmin) {
-        return `👨‍💻 *ADMIN PANEL*\n🛰️ VPS Vital Monitor\n📊 Total Server: *${servers.length}*\n\n_Pilih server untuk monitoring:_`;
-    } else {
-        return `🛰️ *VPS VITAL MONITOR*\n🌐 Public Monitoring Dashboard\n📊 Total Server: *${servers.length}*\n\n_Pilih server yang ingin dipantau:_`;
-    }
+    const badge = isAdmin ? '👨‍💻 *ADMIN PANEL*' : '🌐 *PUBLIC DASHBOARD*';
+    return [
+        '╭───────────────────╮',
+        '   🛰️  *VITAL VPS MONITOR*',
+        '╰───────────────────╯',
+        '',
+        badge,
+        `📊 Total Server : *${servers.length}*`,
+        `🟢 Status       : *Online*`,
+        '',
+        servers.length === 0
+            ? '_Belum ada server. Tambahkan VPS baru._'
+            : '_Pilih server untuk mulai memantau:_'
+    ].join('\n');
 }
 
 async function fetchStats(vps) {
     return new Promise((resolve) => {
-        const cmd = `sshpass -p '${vps.pass}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 ${vps.user}@${vps.ip} "bash -s" < /root/vital/monitor.sh`;
-        exec(cmd, { timeout: 15000 }, (error, stdout) => {
-            if (error) resolve(null);
-            else resolve(stdout.replace(/\x1b\[[0-9;]*m/g, ''));
+        // sshpass -e membaca password dari env SSHPASS agar tidak bocor di daftar proses (ps).
+        // Argumen dikirim sebagai array (bukan string) untuk mencegah command injection.
+        const args = [
+            '-e', 'ssh',
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'ConnectTimeout=8',
+            `${vps.user}@${vps.ip}`,
+            'bash -s'
+        ];
+        const child = spawn('sshpass', args, {
+            env: { ...process.env, SSHPASS: vps.pass },
+            timeout: 15000
         });
+
+        let stdout = '';
+        let done = false;
+        const finish = (val) => { if (!done) { done = true; resolve(val); } };
+
+        child.stdout.on('data', (d) => { stdout += d.toString(); });
+        child.on('error', () => finish(null));
+        child.on('close', (code) => {
+            if (code !== 0) return finish(null);
+            finish(stdout.replace(/\x1b\[[0-9;]*m/g, ''));
+        });
+
+        // Kirim isi script monitor.sh via stdin
+        try {
+            fs.createReadStream(MONITOR_SCRIPT).pipe(child.stdin);
+        } catch (e) {
+            finish(null);
+        }
     });
 }
 
@@ -89,8 +130,8 @@ async function startLive(chatId, msgId, name) {
         const stats = await fetchStats(vps);
         const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
         const text = stats
-            ? '```\n' + stats + '```'
-            : `*\u26a0\ufe0f SERVER OFFLINE*\n\n🖥 ${name.toUpperCase()}\n⏰ Cek terakhir: ${now}`;
+            ? '```\n' + stats + `\n🕐 Update : ${now} (auto 3s)\n────────────────────────────` + '```'
+            : `⚠️ *SERVER OFFLINE*\n\n🖥 Server : *${name.toUpperCase()}*\n🌐 IP     : ${vps.ip}\n⏰ Cek    : ${now}\n\n_Tidak dapat terhubung. Pastikan VPS aktif._`;
 
         bot.editMessageText(text, {
             chat_id: chatId,
