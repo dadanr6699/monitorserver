@@ -17,7 +17,18 @@ Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK) secara **Real-time** (
 
 ## 📥 Cara Penginstalan
 
-### 1. Update & Install Dependensi Sistem
+### Instalasi Cepat (Otomatis)
+Cukup jalankan installer, ikuti prompt (BOT_TOKEN & ADMIN_ID), sisanya otomatis:
+```bash
+git clone https://github.com/dadanr6699/monitorserver.git
+cd monitorserver
+bash install.sh
+```
+Installer akan memasang dependensi (NodeJS, sshpass, bc, PM2), membuat `.env`, lalu menjalankan bot via PM2.
+
+### Instalasi Manual
+
+#### 1. Update & Install Dependensi Sistem
 ```bash
 sudo apt-get update && sudo apt-get install -y sshpass zip unzip
 ```
