@@ -31,8 +31,8 @@ sudo npm install -g pm2
 
 ### 3. Clone Repository
 ```bash
-git clone https://github.com/dadanr6699/vital69.git
-cd vital69
+git clone https://github.com/dadanr6699/monitorserver.git
+cd monitorserver
 ```
 
 ### 4. Install Dependensi Bot
@@ -41,9 +41,14 @@ npm install
 ```
 
 ### 5. Konfigurasi Bot
-Buka file `bot.js`, lalu cari baris berikut dan sesuaikan:
-- `token`: Ganti dengan Token Bot Telegram Anda (dari @BotFather).
-- `ADMIN_ID`: Ganti dengan Chat ID Telegram Anda (dari @userinfobot).
+Salin file contoh environment lalu isi nilainya:
+```bash
+cp .env.example .env
+nano .env
+```
+- `BOT_TOKEN`: Token Bot Telegram Anda (dari @BotFather).
+- `ADMIN_ID`: Chat ID Telegram Anda (dari @userinfobot).
+- `BOT_API_URL` (opsional): URL local Telegram Bot API server. Kosongkan untuk memakai API resmi Telegram.
 
 ### 6. Jalankan Bot
 ```bash
@@ -51,6 +56,7 @@ pm2 start bot.js --name "vital-monitor"
 pm2 save
 pm2 startup
 ```
+Atau untuk uji cepat: `npm start`.
 
 ## 🎮 Cara Penggunaan
 1. Buka bot Anda di Telegram.
