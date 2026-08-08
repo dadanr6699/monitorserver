@@ -112,5 +112,5 @@ Dilisensikan di bawah [MIT License](LICENSE).
 ---
 
 ### 📞 Kontak & Support
-Jika ada pertanyaan atau butuh bantuan instalasi, hubungi developer via Telegram: [@Dadan_R01](https://t.me/Dadan_R01)
+Telegram: [@Dadan_R01](https://t.me/Dadan_R01)
 
