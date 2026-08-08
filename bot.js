@@ -131,7 +131,7 @@ async function startLive(chatId, msgId, name) {
         const stats = await fetchStats(vps);
         const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
         const text = stats
-            ? '```\n' + stats + `\n🕐 Update : ${now} (auto 3s)\n────────────────────────────` + '```'
+            ? '```\n' + stats + `\n🕐 Update : ${now}\n────────────────────────────` + '```'
             : `⚠️ *SERVER OFFLINE*\n\n🖥 Server : *${name.toUpperCase()}*\n🌐 IP     : ${vps.ip}\n⏰ Cek    : ${now}\n\n_Tidak dapat terhubung. Pastikan VPS aktif._`;
 
         bot.editMessageText(text, {
