@@ -107,8 +107,8 @@ cat << ENDOUT
 
 📍 SYSTEM INFO
    OS      : $os
-   ISP     : $isp_pub
    IP      : $ip_pub
+   ISP     : $isp_pub
    Uptime  : $uptime_str
    Load    : $load_avg
    Proses  : $proc_count aktif
