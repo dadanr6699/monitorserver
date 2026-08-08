@@ -73,10 +73,11 @@ function getHeaderText(chatId) {
 
 async function fetchStats(vps) {
     return new Promise((resolve) => {
-        // sshpass -e membaca password dari env SSHPASS agar tidak bocor di daftar proses (ps).
-        // Argumen dikirim sebagai array (bukan string) untuk mencegah command injection.
+        // Gunakan port SSH yang disimpan, default ke 22 jika tidak diset
+        const port = vps.port || '22';
         const args = [
             '-e', 'ssh',
+            '-p', port,
             '-o', 'StrictHostKeyChecking=no',
             '-o', 'ConnectTimeout=8',
             `${vps.user}@${vps.ip}`,
@@ -249,6 +250,12 @@ bot.on('message', async (msg) => {
         state.lastBotMsgId = sent.message_id;
     } else if (state.step === 'IP') {
         state.data.ip = msg.text;
+        state.step = 'PORT';
+        const sent = await bot.sendMessage(chatId, '🔌 Masukkan *Port SSH* VPS:\n_(Ketik angka port, atau ketik 22 untuk default)_', { parse_mode: 'Markdown' });
+        state.lastBotMsgId = sent.message_id;
+    } else if (state.step === 'PORT') {
+        const portInput = msg.text.trim();
+        state.data.port = /^[0-9]+$/.test(portInput) ? portInput : '22';
         state.step = 'USER';
         const sent = await bot.sendMessage(chatId, '👤 Masukkan *Username SSH*:', { parse_mode: 'Markdown' });
         state.lastBotMsgId = sent.message_id;
@@ -264,7 +271,7 @@ bot.on('message', async (msg) => {
         saveGlobalServers(srvs);
         userState[chatId] = null;
         bot.sendMessage(chatId,
-            `✅ *VPS Berhasil Ditambahkan!*\n\n🖥 Nama : *${state.data.name}*\n🌐 IP   : ${state.data.ip}\n👤 User : ${state.data.user}`,
+            `✅ *VPS Berhasil Ditambahkan!*\n\n🖥 Nama : *${state.data.name}*\n🌐 IP   : ${state.data.ip}\n🔌 Port : ${state.data.port}\n👤 User : ${state.data.user}`,
             { parse_mode: 'Markdown', reply_markup: getMainMenu(chatId) }
         );
     }
