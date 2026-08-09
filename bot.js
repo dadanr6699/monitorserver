@@ -489,7 +489,7 @@ function getWebDashboardHTML() {
                 const data = await res.json();
                 const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
                 if (data.ok && data.stats) {
-                    const cleanStats = data.stats.replace(/^╔[\\s\\S]*?╚[^\\n]*\\n+/, '');
+                    const cleanStats = '────────────────────────────\n' + data.stats.replace(/^╔[\\s\\S]*?╚[^\\n]*\\n+/, '');
                     document.getElementById('output').textContent = cleanStats + '\\n🕐 Update : ' + now + '\\n────────────────────────────';
                 } else {
                     document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\\n\\n🖥 Server : ' + name.toUpperCase() + '\\n⏰ Cek    : ' + now + '\\n\\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
