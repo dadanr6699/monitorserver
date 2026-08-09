@@ -3,6 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 const token = process.env.BOT_TOKEN;
 const ADMIN_ID = parseInt(process.env.ADMIN_ID);
@@ -289,6 +290,140 @@ bot.on('message', async (msg) => {
             { parse_mode: 'HTML', reply_markup: getMainMenu(chatId) }
         );
     }
+});
+
+// -------------------------------------------------------------
+// WEB DASHBOARD SERVER (Zero-dependency HTTP Server)
+// -------------------------------------------------------------
+const WEB_PORT = parseInt(process.env.WEB_PORT || '3000');
+
+function getWebDashboardHTML() {
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vital VPS Monitor Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0d1117; color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+        .container { width: 100%; max-width: 650px; }
+        header { text-align: center; margin-bottom: 20px; padding: 15px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        h1 { font-size: 1.4rem; color: #58a6ff; margin-bottom: 5px; }
+        p.subtitle { font-size: 0.85rem; color: #8b949e; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        select { flex: 1; padding: 10px; background: #161b22; color: #58a6ff; border: 1px solid #30363d; border-radius: 6px; font-size: 0.95rem; font-weight: bold; outline: none; cursor: pointer; }
+        select:focus { border-color: #58a6ff; }
+        .terminal { background: #010409; border: 1px solid #30363d; border-radius: 8px; padding: 15px; font-family: "Courier New", Courier, monospace; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.4; color: #7ee787; min-height: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow-x: auto; }
+        .footer { margin-top: 15px; text-align: center; font-size: 0.8rem; color: #8b949e; }
+        .footer a { color: #58a6ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛰️ VITAL VPS MONITOR</h1>
+            <p class="subtitle">Real-Time VPS Performance Dashboard</p>
+        </header>
+
+        <div class="controls">
+            <select id="serverSelect" onchange="onServerChange()">
+                <option value="">⏳ Memuat daftar server...</option>
+            </select>
+        </div>
+
+        <div class="terminal" id="output">Silakan pilih server untuk memantau...</div>
+
+        <div class="footer">
+            Real-Time Monitor | Auto Refresh: 3s
+        </div>
+    </div>
+
+    <script>
+        let timer = null;
+        async function loadServers() {
+            try {
+                const res = await fetch('/api/servers');
+                const servers = await res.json();
+                const select = document.getElementById('serverSelect');
+                if (servers.length === 0) {
+                    select.innerHTML = '<option value="">📭 Belum ada server terdaftar</option>';
+                    document.getElementById('output').textContent = 'Belum ada server yang terdaftar.';
+                    return;
+                }
+                select.innerHTML = servers.map(s => \`<option value="\${s.name}">🖥️ \${s.name.toUpperCase()} (\${s.ip})</option>\`).join('');
+                onServerChange();
+            } catch (e) {
+                document.getElementById('output').textContent = 'Error memuat daftar server.';
+            }
+        }
+
+        async function updateStats() {
+            const name = document.getElementById('serverSelect').value;
+            if (!name) return;
+            try {
+                const res = await fetch('/api/stats?name=' + encodeURIComponent(name));
+                const data = await res.json();
+                const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
+                if (data.ok && data.stats) {
+                    document.getElementById('output').textContent = data.stats + '\\n🕐 Update : ' + now + '\\n────────────────────────────';
+                } else {
+                    document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\\n\\n🖥 Server : ' + name.toUpperCase() + '\\n⏰ Cek    : ' + now + '\\n\\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
+                }
+            } catch (e) {
+                document.getElementById('output').textContent = 'Error koneksi ke Web API.';
+            }
+        }
+
+        function onServerChange() {
+            if (timer) clearInterval(timer);
+            document.getElementById('output').textContent = '⏳ Menghubungkan ke server...';
+            updateStats();
+            timer = setInterval(updateStats, 3000);
+        }
+        loadServers();
+    </script>
+</body>
+</html>`;
+}
+
+const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    
+    if (url.pathname === '/') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(getWebDashboardHTML());
+    }
+
+    if (url.pathname === '/api/servers') {
+        const servers = getGlobalServers().map(s => ({ name: s.name, ip: s.ip, port: s.port || '22' }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(servers));
+    }
+
+    if (url.pathname === '/api/stats') {
+        const name = url.searchParams.get('name');
+        const vps = getGlobalServers().find(s => s.name === name);
+        if (!vps) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ ok: false, message: 'Server not found' }));
+        }
+
+        const stats = await fetchStats(vps);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: !!stats, stats }));
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('404 Not Found');
+});
+
+server.listen(WEB_PORT, () => {
+    console.log(`🌐 Web Dashboard running on http://0.0.0.0:${WEB_PORT}`);
 });
 
 process.on('uncaughtException', err => console.error('Uncaught:', err));

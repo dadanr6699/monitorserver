@@ -42,9 +42,10 @@ Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK, Network) secara **Real
 
 ### 🚀 Fitur Utama
 * **⚡ Real-Time Monitoring** — Data resource diperbarui otomatis setiap 3 detik.
-* **🖥️ Multi-Server** — Pantau banyak VPS sekaligus dalam satu bot.
+* **🌐 Web Dashboard** — Akses monitoring via browser (default `http://IP_SERVER:3000`).
+* **🖥️ Multi-Server** — Pantau banyak VPS sekaligus dalam satu bot & web.
 * **🛡️ Secure Connection** — Koneksi SSH menggunakan argumen aman (`sshpass -e`), aman dari kebocoran password di process list (`ps`).
-* **🔑 Admin & Public Mode** — Menu manajemen (Tambah/Hapus) khusus Admin. Pengguna publik hanya dapat memantau.
+* **🔑 Admin & Public Mode** — Menu manajemen (Tambah/Hapus) khusus Admin di Telegram.
 
 ---
 
