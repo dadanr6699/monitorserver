@@ -297,49 +297,164 @@ bot.on('message', async (msg) => {
 // -------------------------------------------------------------
 const WEB_PORT = parseInt(process.env.WEB_PORT || '3000');
 
+function getWebDashboardCSS() {
+    return `
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #090d16; color: #d1d5db;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 24px 16px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 0%, rgba(0, 210, 255, 0.12) 0%, transparent 65%);
+        }
+        .container { width: 100%; max-width: 680px; }
+        
+        header {
+            text-align: center; margin-bottom: 24px; padding: 24px 20px;
+            background: rgba(18, 26, 42, 0.75);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .logo-3d-box {
+            display: inline-flex; align-items: center; justify-content: center; gap: 14px;
+            perspective: 800px; margin-bottom: 6px;
+        }
+
+        .cube-3d {
+            width: 48px; height: 48px;
+            animation: float3d 4s ease-in-out infinite alternate;
+            filter: drop-shadow(0 8px 16px rgba(0, 210, 255, 0.6));
+        }
+
+        @keyframes float3d {
+            0% { transform: translateY(0px) rotateY(-10deg) rotateX(10deg); }
+            100% { transform: translateY(-8px) rotateY(15deg) rotateX(-5deg); }
+        }
+
+        .logo-3d-text {
+            font-size: 2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 
+                0 1px 0 #00b4d8, 0 2px 0 #0096c7, 0 3px 0 #0077b6,
+                0 4px 0 #023e8a, 0 5px 0 #03045e, 0 8px 15px rgba(0, 180, 216, 0.6);
+            transform: rotateX(8deg) rotateY(-4deg); display: inline-block;
+        }
+
+        p.subtitle { font-size: 0.82rem; color: #94a3b8; font-weight: 600; letter-spacing: 1.5px; }
+
+        .controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+        .select-wrapper { position: relative; flex: 1; }
+        select {
+            width: 100%; padding: 12px 16px;
+            background: #111827; color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px;
+            font-size: 0.95rem; font-weight: 700; outline: none; cursor: pointer;
+            appearance: none; -webkit-appearance: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s ease;
+        }
+        select:focus { border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        .select-arrow {
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            pointer-events: none; color: #38bdf8; font-size: 0.8rem;
+        }
+
+        .live-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #4ade80; font-size: 0.78rem; font-weight: 700;
+            padding: 10px 14px; border-radius: 10px; white-space: nowrap;
+        }
+        .pulse-dot {
+            width: 8px; height: 8px; background: #22c55e; border-radius: 50%;
+            box-shadow: 0 0 8px #22c55e; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+
+        .terminal-card {
+            background: #060911; border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7), 0 0 30px rgba(0, 210, 255, 0.05);
+        }
+        .terminal-header {
+            background: #0f172a; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .mac-dots { display: flex; gap: 6px; }
+        .mac-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #ef4444; } .dot-yellow { background: #f59e0b; } .dot-green { background: #10b981; }
+        .term-title { font-size: 0.78rem; font-family: monospace; color: #64748b; font-weight: 600; }
+
+        .terminal-body {
+            padding: 18px; font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+            white-space: pre-wrap; font-size: 0.88rem; line-height: 1.45; color: #4ade80;
+            min-height: 390px; overflow-x: auto;
+            background-image: radial-gradient(rgba(0, 255, 120, 0.03) 1px, transparent 0);
+            background-size: 16px 16px;
+        }
+
+        .footer { margin-top: 18px; text-align: center; font-size: 0.8rem; color: #64748b; }
+        .footer a { color: #38bdf8; text-decoration: none; font-weight: 600; }
+    `;
+}
+
 function getWebDashboardHTML() {
     return `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vital VPS Monitor Dashboard</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background-color: #0d1117; color: #c9d1d9;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-            padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
-        }
-        .container { width: 100%; max-width: 650px; }
-        header { text-align: center; margin-bottom: 20px; padding: 15px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
-        h1 { font-size: 1.4rem; color: #58a6ff; margin-bottom: 5px; }
-        p.subtitle { font-size: 0.85rem; color: #8b949e; }
-        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
-        select { flex: 1; padding: 10px; background: #161b22; color: #58a6ff; border: 1px solid #30363d; border-radius: 6px; font-size: 0.95rem; font-weight: bold; outline: none; cursor: pointer; }
-        select:focus { border-color: #58a6ff; }
-        .terminal { background: #010409; border: 1px solid #30363d; border-radius: 8px; padding: 15px; font-family: "Courier New", Courier, monospace; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.4; color: #7ee787; min-height: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow-x: auto; }
-        .footer { margin-top: 15px; text-align: center; font-size: 0.8rem; color: #8b949e; }
-        .footer a { color: #58a6ff; text-decoration: none; }
-    </style>
+    <title>VPS MONITOR 3D</title>
+    <style>${getWebDashboardCSS()}</style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛰️ VITAL VPS MONITOR</h1>
-            <p class="subtitle">Real-Time VPS Performance Dashboard</p>
+            <div class="logo-3d-box">
+                <svg class="cube-3d" viewBox="0 0 64 64" fill="none">
+                    <path d="M32 6L54 18V46L32 58L10 46V18L32 6Z" fill="url(#gradTop)" stroke="#38bdf8" stroke-width="2"/>
+                    <path d="M32 6L54 18L32 30L10 18L32 6Z" fill="url(#gradSide1)" opacity="0.9"/>
+                    <path d="M32 30V58L10 46V18L32 30Z" fill="url(#gradSide2)" opacity="0.8"/>
+                    <path d="M32 30L54 18V46L32 58V30Z" fill="url(#gradSide3)" opacity="0.95"/>
+                    <circle cx="32" cy="30" r="4" fill="#38bdf8"/>
+                    <defs>
+                        <linearGradient id="gradTop" x1="10" y1="6" x2="54" y2="58"><stop stop-color="#0284c7"/><stop offset="1" stop-color="#03045e"/></linearGradient>
+                        <linearGradient id="gradSide1" x1="10" y1="6" x2="54" y2="30"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+                        <linearGradient id="gradSide2" x1="10" y1="18" x2="32" y2="58"><stop stop-color="#03045e"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+                        <linearGradient id="gradSide3" x1="32" y1="18" x2="54" y2="58"><stop stop-color="#0077b6"/><stop offset="1" stop-color="#03045e"/></linearGradient>
+                    </defs>
+                </svg>
+                <div class="logo-3d-text">VPS MONITOR</div>
+            </div>
+            <p class="subtitle">REAL-TIME SYSTEM CONTROL PANEL</p>
         </header>
 
         <div class="controls">
-            <select id="serverSelect" onchange="onServerChange()">
-                <option value="">⏳ Memuat daftar server...</option>
-            </select>
+            <div class="select-wrapper">
+                <select id="serverSelect" onchange="onServerChange()">
+                    <option value="">⏳ Memuat daftar server...</option>
+                </select>
+                <div class="select-arrow">▼</div>
+            </div>
+            <div class="live-badge">
+                <div class="pulse-dot"></div> LIVE (3s)
+            </div>
         </div>
 
-        <div class="terminal" id="output">Silakan pilih server untuk memantau...</div>
+        <div class="terminal-card">
+            <div class="terminal-header">
+                <div class="mac-dots">
+                    <div class="mac-dot dot-red"></div>
+                    <div class="mac-dot dot-yellow"></div>
+                    <div class="mac-dot dot-green"></div>
+                </div>
+                <div class="term-title">terminal@vps-monitor:~</div>
+            </div>
+            <div class="terminal-body" id="output">Silakan pilih server untuk memantau...</div>
+        </div>
 
         <div class="footer">
-            Real-Time Monitor | Auto Refresh: 3s
+            Bot Telegram: <a href="https://t.me/log_metaBot" target="_blank">@log_metaBot</a> | Real-Time Telemetry
         </div>
     </div>
 
