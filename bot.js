@@ -395,6 +395,14 @@ function getWebDashboardCSS() {
             display: block; text-align: left; box-sizing: border-box;
         }
 
+        .terminal-footer {
+            background: #0f172a; padding: 6px 14px; font-size: 0.68rem; font-family: ui-monospace, monospace;
+            color: #64748b; border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .status-ok { color: #4ade80; font-weight: 600; }
+        .update-val { color: #38bdf8; font-weight: 600; }
+
         .footer { margin-top: 10px; text-align: center; font-size: 0.7rem; color: #64748b; }
         .footer a { color: #38bdf8; text-decoration: none; font-weight: 600; }
     `;
@@ -453,6 +461,10 @@ function getWebDashboardHTML() {
                 <div class="term-title">terminal@vps-monitor:~</div>
             </div>
             <div class="terminal-body" id="output">Silakan pilih server untuk memantau...</div>
+            <div class="terminal-footer">
+                <span class="status-ok">● CONNECTED</span>
+                <span>UPDATE: <span id="updateTime" class="update-val">--:--:--</span></span>
+            </div>
         </div>
 
         <div class="footer">
@@ -487,9 +499,11 @@ function getWebDashboardHTML() {
                 const data = await res.json();
                 const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
                 if (data.ok && data.stats) {
-                    document.getElementById('output').textContent = data.stats + '\\\\n────────────────────────────\\\\n🕐 UPDATE  : ' + now + '\\\\n────────────────────────────';
+                    document.getElementById('output').textContent = data.stats;
+                    document.getElementById('updateTime').textContent = now;
                 } else {
-                    document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\\n\\n🖥 Server : ' + name.toUpperCase() + '\\n⏰ Cek    : ' + now + '\\n\\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
+                    document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\n\n🖥 Server : ' + name.toUpperCase() + '\n⏰ Cek    : ' + now + '\n\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
+                    document.getElementById('updateTime').textContent = now;
                 }
             } catch (e) {
                 document.getElementById('output').textContent = 'Error koneksi ke Web API.';
