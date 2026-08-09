@@ -38,16 +38,23 @@ function getMainMenu(chatId) {
     if (servers.length === 0) {
         keyboard.push([{ text: '📭 Belum ada server terdaftar', callback_data: 'none' }]);
     } else {
-        servers.forEach(s => {
-            keyboard.push([{ text: `🖥️  ${s.name.toUpperCase()}`, callback_data: `start_live:${s.name}` }]);
-        });
+        for (let i = 0; i < servers.length; i += 2) {
+            const row = [
+                { text: `🖥️ ${servers[i].name.toUpperCase()}`, callback_data: `start_live:${servers[i].name}` }
+            ];
+            if (i + 1 < servers.length) {
+                row.push({ text: `🖥️ ${servers[i + 1].name.toUpperCase()}`, callback_data: `start_live:${servers[i + 1].name}` });
+            }
+            keyboard.push(row);
+        }
     }
 
     if (chatId === ADMIN_ID) {
-        keyboard.push([{ text: '➕ Tambah VPS', callback_data: 'start_add_flow' }]);
+        const adminRow = [{ text: '➕ Tambah VPS', callback_data: 'start_add_flow' }];
         if (servers.length > 0) {
-            keyboard.push([{ text: '🗑️ Hapus VPS', callback_data: 'menu_del' }]);
+            adminRow.push({ text: '🗑️ Hapus VPS', callback_data: 'menu_del' });
         }
+        keyboard.push(adminRow);
     }
     return { inline_keyboard: keyboard };
 }
@@ -209,7 +216,14 @@ bot.on('callback_query', async (query) => {
     if (data === 'menu_del') {
         if (chatId !== ADMIN_ID) return;
         const gServers = getGlobalServers();
-        const delKeyboard = gServers.map(s => ([{ text: `❌ ${s.name}`, callback_data: `confirm_del:${s.name}` }]));
+        const delKeyboard = [];
+        for (let i = 0; i < gServers.length; i += 2) {
+            const row = [{ text: `❌ ${gServers[i].name}`, callback_data: `confirm_del:${gServers[i].name}` }];
+            if (i + 1 < gServers.length) {
+                row.push({ text: `❌ ${gServers[i + 1].name}`, callback_data: `confirm_del:${gServers[i + 1].name}` });
+            }
+            delKeyboard.push(row);
+        }
         delKeyboard.push([{ text: '🔙 Batal', callback_data: 'back_to_menu' }]);
         bot.editMessageText('🗑 *HAPUS VPS*\n\nPilih VPS yang ingin dihapus:', {
             chat_id: chatId,
