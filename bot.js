@@ -306,7 +306,7 @@ function getWebDashboardCSS() {
             padding: 16px 8px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
             background-image: radial-gradient(circle at 50% 0%, rgba(0, 210, 255, 0.12) 0%, transparent 65%);
         }
-        .container { width: 100%; max-width: 440px; }
+        .container { width: 100%; max-width: 520px; }
         
         header {
             text-align: center; margin-bottom: 10px; padding: 10px 12px;
@@ -387,15 +387,13 @@ function getWebDashboardCSS() {
         .term-title { font-size: 0.68rem; font-family: monospace; color: #64748b; font-weight: 600; }
 
         .terminal-body {
-            padding: 12px 14px; font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
-            white-space: pre-wrap; font-size: 0.73rem; line-height: 1.32; color: #4ade80;
-            min-height: 250px; overflow-x: auto;
+            padding: 14px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            white-space: pre; font-size: 0.72rem; line-height: 1.35; color: #4ade80;
+            min-height: 250px; overflow-x: auto; overflow-y: hidden;
             background-image: radial-gradient(rgba(0, 255, 120, 0.03) 1px, transparent 0);
             background-size: 14px 14px;
-            display: flex; justify-content: center;
+            display: block; text-align: left; box-sizing: border-box;
         }
-
-        .terminal-body pre { width: 100%; max-width: 100%; text-align: left; }
 
         .footer { margin-top: 10px; text-align: center; font-size: 0.7rem; color: #64748b; }
         .footer a { color: #38bdf8; text-decoration: none; font-weight: 600; }
