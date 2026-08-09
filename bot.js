@@ -546,7 +546,8 @@ const server = http.createServer(async (req, res) => {
 
         let stats = await fetchStats(vps);
         if (stats) {
-            stats = stats.replace(/^╔[\s\S]*?╚[^\n]*\n+/, '').trim();
+            const clean = stats.replace(/^╔[\s\S]*?╚[^\n]*\n+/, '').trim();
+            stats = '────────────────────────────\n' + clean + '\n────────────────────────────';
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: !!stats, stats }));
