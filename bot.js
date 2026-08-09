@@ -303,67 +303,67 @@ function getWebDashboardCSS() {
         body {
             background: #090d16; color: #d1d5db;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 12px 10px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+            padding: 16px 8px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
             background-image: radial-gradient(circle at 50% 0%, rgba(0, 210, 255, 0.12) 0%, transparent 65%);
         }
-        .container { width: 100%; max-width: 520px; }
+        .container { width: 100%; max-width: 440px; }
         
         header {
-            text-align: center; margin-bottom: 12px; padding: 12px 14px;
+            text-align: center; margin-bottom: 10px; padding: 10px 12px;
             background: rgba(18, 26, 42, 0.75);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .logo-3d-box {
-            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             perspective: 800px; margin-bottom: 2px;
         }
 
         .cube-3d {
-            width: 32px; height: 32px;
+            width: 26px; height: 26px;
             animation: float3d 4s ease-in-out infinite alternate;
-            filter: drop-shadow(0 4px 10px rgba(0, 210, 255, 0.6));
+            filter: drop-shadow(0 4px 8px rgba(0, 210, 255, 0.6));
         }
 
         @keyframes float3d {
             0% { transform: translateY(0px) rotateY(-10deg) rotateX(10deg); }
-            100% { transform: translateY(-5px) rotateY(15deg) rotateX(-5deg); }
+            100% { transform: translateY(-4px) rotateY(15deg) rotateX(-5deg); }
         }
 
         .logo-3d-text {
-            font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+            font-size: 1.15rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
             color: #ffffff;
             text-shadow: 
                 0 1px 0 #00b4d8, 0 2px 0 #0096c7, 0 3px 0 #0077b6,
-                0 4px 0 #023e8a, 0 5px 10px rgba(0, 180, 216, 0.6);
+                0 4px 8px rgba(0, 180, 216, 0.6);
             transform: rotateX(6deg) rotateY(-3deg); display: inline-block;
         }
 
-        p.subtitle { font-size: 0.72rem; color: #94a3b8; font-weight: 600; letter-spacing: 1px; }
+        p.subtitle { font-size: 0.68rem; color: #94a3b8; font-weight: 600; letter-spacing: 1px; }
 
         .controls { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
         .select-wrapper { position: relative; flex: 1; }
         select {
-            width: 100%; padding: 8px 12px;
+            width: 100%; padding: 7px 10px;
             background: #111827; color: #38bdf8;
             border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px;
-            font-size: 0.85rem; font-weight: 700; outline: none; cursor: pointer;
+            font-size: 0.8rem; font-weight: 700; outline: none; cursor: pointer;
             appearance: none; -webkit-appearance: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.2s ease;
         }
         select:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
         .select-arrow {
             position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            pointer-events: none; color: #38bdf8; font-size: 0.75rem;
+            pointer-events: none; color: #38bdf8; font-size: 0.7rem;
         }
 
         .live-badge {
             display: flex; align-items: center; gap: 5px;
             background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4);
-            color: #4ade80; font-size: 0.72rem; font-weight: 700;
-            padding: 7px 10px; border-radius: 8px; white-space: nowrap;
+            color: #4ade80; font-size: 0.7rem; font-weight: 700;
+            padding: 6px 9px; border-radius: 8px; white-space: nowrap;
         }
         .pulse-dot {
             width: 6px; height: 6px; background: #22c55e; border-radius: 50%;
@@ -372,9 +372,10 @@ function getWebDashboardCSS() {
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
 
         .terminal-card {
-            background: #060911; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #060911; border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 10px; overflow: hidden;
             box-shadow: 0 10px 25px rgba(0,0,0,0.7), 0 0 20px rgba(0, 210, 255, 0.05);
+            display: flex; flex-direction: column;
         }
         .terminal-header {
             background: #0f172a; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between;
@@ -383,17 +384,20 @@ function getWebDashboardCSS() {
         .mac-dots { display: flex; gap: 5px; }
         .mac-dot { width: 8px; height: 8px; border-radius: 50%; }
         .dot-red { background: #ef4444; } .dot-yellow { background: #f59e0b; } .dot-green { background: #10b981; }
-        .term-title { font-size: 0.7rem; font-family: monospace; color: #64748b; font-weight: 600; }
+        .term-title { font-size: 0.68rem; font-family: monospace; color: #64748b; font-weight: 600; }
 
         .terminal-body {
-            padding: 12px; font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
-            white-space: pre-wrap; font-size: 0.78rem; line-height: 1.35; color: #4ade80;
-            min-height: 280px; overflow-x: auto;
+            padding: 12px 14px; font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+            white-space: pre-wrap; font-size: 0.73rem; line-height: 1.32; color: #4ade80;
+            min-height: 250px; overflow-x: auto;
             background-image: radial-gradient(rgba(0, 255, 120, 0.03) 1px, transparent 0);
             background-size: 14px 14px;
+            display: flex; justify-content: center;
         }
 
-        .footer { margin-top: 10px; text-align: center; font-size: 0.72rem; color: #64748b; }
+        .terminal-body pre { width: 100%; max-width: 100%; text-align: left; }
+
+        .footer { margin-top: 10px; text-align: center; font-size: 0.7rem; color: #64748b; }
         .footer a { color: #38bdf8; text-decoration: none; font-weight: 600; }
     `;
 }
