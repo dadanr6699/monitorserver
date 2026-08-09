@@ -441,7 +441,7 @@ function getWebDashboardHTML() {
                 <div class="select-arrow">▼</div>
             </div>
             <div class="live-badge">
-                <div class="pulse-dot"></div> LIVE (3s)
+                <div class="pulse-dot"></div> LIVE
             </div>
         </div>
 
