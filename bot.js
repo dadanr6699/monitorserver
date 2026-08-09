@@ -502,7 +502,7 @@ function getWebDashboardHTML() {
                     document.getElementById('output').textContent = data.stats;
                     document.getElementById('updateTime').textContent = now;
                 } else {
-                    document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\n\n🖥 Server : ' + name.toUpperCase() + '\n⏰ Cek    : ' + now + '\n\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
+                    document.getElementById('output').textContent = '⚠️ SERVER OFFLINE\\\\n\\\\n🖥 Server : ' + name.toUpperCase() + '\\\\n⏰ Cek    : ' + now + '\\\\n\\\\nTidak dapat terhubung via SSH. Pastikan VPS aktif.';
                     document.getElementById('updateTime').textContent = now;
                 }
             } catch (e) {
