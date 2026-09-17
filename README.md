@@ -17,6 +17,8 @@ Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK, Network) secara **Real
 📍 SYSTEM INFO
    OS      : Ubuntu 24.04.4 LTS
    IP      : 152.42.251.217
+   Region  : Singapore (SG)
+   ISP     : DigitalOcean, LLC
    Uptime  : 2 days, 29 minutes
    Load    : 0.80, 0.69, 0.61
    Proses  : 165 aktif

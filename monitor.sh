@@ -24,10 +24,63 @@ get_status() {
 # Info Dasar
 os=$(grep -w PRETTY_NAME /etc/os-release | cut -d '"' -f2)
 uptime_str=$(uptime -p | sed 's/up //')
-ip_pub=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "N/A")
-isp_pub=$(curl -s --max-time 3 ipinfo.io/org 2>/dev/null | cut -d' ' -f2- || echo "N/A")
 load_avg=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 proc_count=$(ps aux --no-headers | wc -l)
+
+# IP & Geo Info (dengan cache 1 jam agar update real-time tetap instan)
+GEO_CACHE="/tmp/.vps_geo_cache"
+if [ -f "$GEO_CACHE" ] && [ $(($(date +%s) - $(stat -c %Y "$GEO_CACHE" 2>/dev/null || echo 0))) -lt 3600 ]; then
+    source "$GEO_CACHE" 2>/dev/null
+fi
+
+if [ -z "$ip_pub" ] || [ -z "$region_str" ] || [ "$ip_pub" = "N/A" ]; then
+    ip_json=$(curl -s --max-time 3 ipinfo.io/json 2>/dev/null)
+    if [ -n "$ip_json" ]; then
+        ip_pub=$(echo "$ip_json" | grep -o '"ip": "[^"]*' | cut -d'"' -f4)
+        isp_pub=$(echo "$ip_json" | grep -o '"org": "[^"]*' | cut -d'"' -f4 | cut -d' ' -f2-)
+        region_pub=$(echo "$ip_json" | grep -o '"region": "[^"]*' | cut -d'"' -f4)
+        country_pub=$(echo "$ip_json" | grep -o '"country": "[^"]*' | cut -d'"' -f4)
+        city_pub=$(echo "$ip_json" | grep -o '"city": "[^"]*' | cut -d'"' -f4)
+    fi
+
+    if [ -z "$ip_pub" ] || [ -z "$region_pub" ]; then
+        api_json=$(curl -s --max-time 3 "http://ip-api.com/json/?fields=query,regionName,city,countryCode,isp" 2>/dev/null)
+        if [ -n "$api_json" ]; then
+            [ -z "$ip_pub" ] && ip_pub=$(echo "$api_json" | grep -o '"query": "[^"]*' | cut -d'"' -f4)
+            [ -z "$isp_pub" ] && isp_pub=$(echo "$api_json" | grep -o '"isp": "[^"]*' | cut -d'"' -f4)
+            [ -z "$region_pub" ] && region_pub=$(echo "$api_json" | grep -o '"regionName": "[^"]*' | cut -d'"' -f4)
+            [ -z "$country_pub" ] && country_pub=$(echo "$api_json" | grep -o '"countryCode": "[^"]*' | cut -d'"' -f4)
+            [ -z "$city_pub" ] && city_pub=$(echo "$api_json" | grep -o '"city": "[^"]*' | cut -d'"' -f4)
+        fi
+    fi
+
+    [ -z "$ip_pub" ] && ip_pub=$(curl -s --max-time 2 ifconfig.me 2>/dev/null || echo "N/A")
+    [ -z "$isp_pub" ] && isp_pub="N/A"
+
+    if [ -n "$city_pub" ] && [ -n "$region_pub" ] && [ "$city_pub" != "$region_pub" ]; then
+        if [ -n "$country_pub" ]; then
+            region_str="$city_pub, $region_pub ($country_pub)"
+        else
+            region_str="$city_pub, $region_pub"
+        fi
+    elif [ -n "$city_pub" ] && [ -n "$country_pub" ]; then
+        region_str="$city_pub ($country_pub)"
+    elif [ -n "$region_pub" ] && [ -n "$country_pub" ]; then
+        region_str="$region_pub ($country_pub)"
+    elif [ -n "$region_pub" ]; then
+        region_str="$region_pub"
+    else
+        region_str="N/A"
+    fi
+
+    if [ "$ip_pub" != "N/A" ]; then
+        cat > "$GEO_CACHE" 2>/dev/null <<CACHEOF
+ip_pub="$ip_pub"
+isp_pub="$isp_pub"
+region_str="$region_str"
+CACHEOF
+    fi
+fi
 
 # CPU
 cpu_load=$(top -bn1 | grep 'Cpu(s)' | awk '{print $2+$4}' | cut -d. -f1)
@@ -58,8 +111,8 @@ net_iface=$(ip route 2>/dev/null | awk '/^default/{print $5; exit}')
 if [ -d "/sys/class/net/$net_iface" ]; then
     rx_total=$(cat /sys/class/net/$net_iface/statistics/rx_bytes)
     tx_total=$(cat /sys/class/net/$net_iface/statistics/tx_bytes)
-    rx_total_gb=$(echo "scale=2; $rx_total/1024/1024/1024" | bc)
-    tx_total_gb=$(echo "scale=2; $tx_total/1024/1024/1024" | bc)
+    rx_total_gb=$(awk "BEGIN {printf \"%.2f\", $rx_total/1073741824}")
+    tx_total_gb=$(awk "BEGIN {printf \"%.2f\", $tx_total/1073741824}")
 
     rx_b1=$rx_total
     tx_b1=$tx_total
@@ -75,10 +128,10 @@ fi
 
 format_speed() {
     local bps=$1
-    if [ $bps -ge 1048576 ]; then
-        echo "$(echo "scale=2; $bps/1048576" | bc) MB/s"
-    elif [ $bps -ge 1024 ]; then
-        echo "$(echo "scale=1; $bps/1024" | bc) KB/s"
+    if [ "$bps" -ge 1048576 ]; then
+        awk "BEGIN {printf \"%.2f MB/s\", $bps/1048576}"
+    elif [ "$bps" -ge 1024 ]; then
+        awk "BEGIN {printf \"%.1f KB/s\", $bps/1024}"
     else
         echo "${bps} B/s"
     fi
@@ -108,6 +161,7 @@ cat << ENDOUT
 📍 SYSTEM INFO
    OS      : $os
    IP      : $ip_pub
+   Region  : $region_str
    ISP     : $isp_pub
    Uptime  : $uptime_str
    Load    : $load_avg
