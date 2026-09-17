@@ -137,7 +137,7 @@ async function startLive(chatId, msgId, name) {
 
     const update = async () => {
         const stats = await fetchStats(vps);
-        const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
+        const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false }) + ' WIB';
         const text = stats
             ? '```\n' + stats + `\n🕐 Update : ${now}\n────────────────────────────` + '```'
             : `⚠️ *SERVER OFFLINE*\n\n🖥 Server : *${name.toUpperCase()}*\n🌐 IP     : ${vps.ip}\n⏰ Cek    : ${now}\n\n_Tidak dapat terhubung. Pastikan VPS aktif._`;
@@ -497,7 +497,7 @@ function getWebDashboardHTML() {
             try {
                 const res = await fetch('/api/stats?name=' + encodeURIComponent(name));
                 const data = await res.json();
-                const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
+                const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false }) + ' WIB';
                 if (data.ok && data.stats) {
                     document.getElementById('output').textContent = data.stats;
                     document.getElementById('updateTime').textContent = now;
