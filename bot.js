@@ -67,7 +67,7 @@ function getHeaderText(chatId) {
     const serverCount = servers.length;
 
     return [
-        '🛰️ <b>VITAL VPS MONITOR</b>',
+        '🛰️ <b>VPS MONITORING</b>',
         '<blockquote>🌐 <b>System Overview</b>',
         `• 👤 <b>Role Access</b> : <code>${badge}</code>`,
         `• 📊 <b>Registered VPS</b> : <code>${serverCount} Server${serverCount !== 1 ? 's' : ''}</code>`,
@@ -472,7 +472,7 @@ function getWebDashboardHTML() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VPS MONITOR 3D</title>
+    <title>VPS MONITORING 3D</title>
     <style>${getWebDashboardCSS()}</style>
 </head>
 <body>
@@ -492,7 +492,7 @@ function getWebDashboardHTML() {
                         <linearGradient id="gradSide3" x1="32" y1="18" x2="54" y2="58"><stop stop-color="#0077b6"/><stop offset="1" stop-color="#03045e"/></linearGradient>
                     </defs>
                 </svg>
-                <div class="logo-3d-text">VPS MONITOR</div>
+                <div class="logo-3d-text">VPS MONITORING</div>
             </div>
             <p class="subtitle">REAL-TIME SYSTEM CONTROL PANEL</p>
         </header>
@@ -622,4 +622,4 @@ server.listen(WEB_PORT, () => {
 process.on('uncaughtException', err => console.error('Uncaught:', err));
 process.on('unhandledRejection', err => console.error('Unhandled:', err));
 
-console.log('✅ VPS Vital Monitor Bot running...');
+console.log('✅ VPS Monitoring Bot running...');

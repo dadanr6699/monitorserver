@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# ⛩️ VITAL VPS MONITOR BOT - Installer
+# ⛩️ VPS MONITORING BOT - Installer
 # Flow: input BOT_TOKEN & ADMIN_ID, sisanya otomatis.
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -15,7 +15,7 @@ cd "$SCRIPT_DIR"
 [ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   🛰️  VITAL VPS MONITOR - INSTALLER"
+echo "   🛰️  VPS MONITORING - INSTALLER"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # 1. Dependensi sistem

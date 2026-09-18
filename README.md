@@ -1,4 +1,4 @@
-# 🛰️ VITAL VPS MONITOR BOT
+# 🛰️ VPS MONITORING BOT
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/Node.js-v14%2B-blue.svg)](https://nodejs.org)
@@ -11,7 +11,7 @@ Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK, Network) secara **Real
 ### 📺 Preview Dashboard
 ```text
 ╔══════════════════════════╗
-     🛰️  VPS VITAL MONITOR
+      🛰️  VPS MONITORING
 ╚══════════════════════════╝
 
 📍 SYSTEM INFO

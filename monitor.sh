@@ -207,7 +207,7 @@ top3=$(ps -eo comm,%cpu --sort=-%cpu | awk 'NR>1 && NR<=4 {
 # OUTPUT TAMPILAN ELEGAN
 cat << ENDOUT
 ╔══════════════════════════╗
-     🛰️  VPS VITAL MONITOR
+      🛰️  VPS MONITORING
 ╚══════════════════════════╝
 
 📍 SYSTEM INFO
