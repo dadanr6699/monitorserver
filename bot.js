@@ -79,7 +79,7 @@ function getHeaderText(chatId) {
     ].join('\n');
 }
 
-async function fetchStats(vps) {
+async function fetchStats(vps, onSpawn) {
     return new Promise((resolve) => {
         // Gunakan port SSH yang disimpan, default ke 22 jika tidak diset
         const port = vps.port || '22';
@@ -96,10 +96,17 @@ async function fetchStats(vps) {
             timeout: 15000
         });
 
+        if (typeof onSpawn === 'function') {
+            onSpawn(child);
+        }
+
         let stdout = '';
         let done = false;
         const finish = (val) => { if (!done) { done = true; resolve(val); } };
 
+        if (child.stdin) {
+            child.stdin.on('error', () => {});
+        }
         child.stdout.on('data', (d) => { stdout += d.toString(); });
         child.on('error', () => finish(null));
         child.on('close', (code) => {
@@ -109,7 +116,9 @@ async function fetchStats(vps) {
 
         // Kirim isi script monitor.sh via stdin
         try {
-            fs.createReadStream(MONITOR_SCRIPT).pipe(child.stdin);
+            const stream = fs.createReadStream(MONITOR_SCRIPT);
+            stream.on('error', () => finish(null));
+            stream.pipe(child.stdin);
         } catch (e) {
             finish(null);
         }
@@ -118,7 +127,18 @@ async function fetchStats(vps) {
 
 function stopLive(chatId) {
     if (liveSessions[chatId]) {
-        clearInterval(liveSessions[chatId].interval);
+        const session = liveSessions[chatId];
+        session.stopped = true;
+        if (session.timer) {
+            clearTimeout(session.timer);
+            session.timer = null;
+        }
+        if (session.child) {
+            try {
+                session.child.kill('SIGKILL');
+            } catch (e) {}
+            session.child = null;
+        }
         delete liveSessions[chatId];
     }
 }
@@ -135,23 +155,54 @@ async function startLive(chatId, msgId, name) {
         ]
     };
 
-    const update = async () => {
-        const stats = await fetchStats(vps);
+    const session = {
+        id: Date.now() + Math.random(),
+        stopped: false,
+        timer: null,
+        child: null
+    };
+    liveSessions[chatId] = session;
+
+    const updateLoop = async () => {
+        if (session.stopped || liveSessions[chatId] !== session) return;
+
+        const stats = await fetchStats(vps, (child) => {
+            if (session.stopped || liveSessions[chatId] !== session) {
+                try { child.kill('SIGKILL'); } catch (e) {}
+                return;
+            }
+            session.child = child;
+        });
+
+        session.child = null;
+
+        // Cek apakah user telah menghentikan monitor atau berpindah menu
+        if (session.stopped || liveSessions[chatId] !== session) return;
+
         const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false }) + ' WIB';
         const text = stats
             ? '```\n' + stats + `\n🕐 Update : ${now}\n────────────────────────────` + '```'
             : `⚠️ *SERVER OFFLINE*\n\n🖥 Server : *${name.toUpperCase()}*\n🌐 IP     : ${vps.ip}\n⏰ Cek    : ${now}\n\n_Tidak dapat terhubung. Pastikan VPS aktif._`;
 
-        bot.editMessageText(text, {
-            chat_id: chatId,
-            message_id: msgId,
-            parse_mode: 'Markdown',
-            reply_markup: liveKeyboard
-        }).catch(() => {});
+        // Cek kembali sebelum mengedit pesan di Telegram
+        if (session.stopped || liveSessions[chatId] !== session) return;
+
+        try {
+            await bot.editMessageText(text, {
+                chat_id: chatId,
+                message_id: msgId,
+                parse_mode: 'Markdown',
+                reply_markup: liveKeyboard
+            });
+        } catch (err) {}
+
+        // Jadwalkan siklus berikutnya hanya jika sesi masih aktif
+        if (!session.stopped && liveSessions[chatId] === session) {
+            session.timer = setTimeout(updateLoop, 3000);
+        }
     };
 
-    update();
-    liveSessions[chatId] = { interval: setInterval(update, 3000) };
+    updateLoop();
 }
 
 bot.onText(/\/(start|vital|monitor|menu)/, async (msg) => {
@@ -176,34 +227,36 @@ bot.on('callback_query', async (query) => {
         const vps = getGlobalServers().find(s => s.name === name);
         if (!vps) return bot.answerCallbackQuery(query.id, { text: 'VPS tidak ditemukan' });
         bot.answerCallbackQuery(query.id, { text: `📡 Menghubungkan ke ${name}...` });
+        stopLive(chatId);
         bot.editMessageText(`⏳ *Menghubungkan ke ${name.toUpperCase()}...*\nMohon tunggu sebentar.`, {
             chat_id: chatId,
             message_id: msgId,
             parse_mode: 'Markdown',
             reply_markup: { inline_keyboard: [[{ text: '🔙 Batal', callback_data: 'back_to_menu' }]] }
-        }).then(() => startLive(chatId, msgId, name)).catch(() => {});
+        }).catch(() => {});
+        startLive(chatId, msgId, name);
     }
 
     if (data === 'stop_live') {
         stopLive(chatId);
-        bot.answerCallbackQuery(query.id, { text: '⏹️ Monitoring dihentikan' });
+        bot.answerCallbackQuery(query.id, { text: '⏹️ Monitoring dihentikan' }).catch(() => {});
         bot.editMessageText('⏹️ <b>Monitoring dihentikan.</b>\n\nKlik server lagi untuk memulai ulang.', {
             chat_id: chatId,
             message_id: msgId,
             parse_mode: 'HTML',
             reply_markup: getMainMenu(chatId)
-        });
+        }).catch(() => {});
     }
 
     if (data === 'back_to_menu') {
         stopLive(chatId);
-        bot.answerCallbackQuery(query.id);
+        bot.answerCallbackQuery(query.id).catch(() => {});
         bot.editMessageText(getHeaderText(chatId), {
             chat_id: chatId,
             message_id: msgId,
             parse_mode: 'HTML',
             reply_markup: getMainMenu(chatId)
-        });
+        }).catch(() => {});
     }
 
     if (data === 'start_add_flow') {
