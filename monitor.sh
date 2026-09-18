@@ -99,14 +99,20 @@ if [ -z "$cpu_model" ] || [ -z "$cpu_cores" ] || [ -z "$ram_spec" ]; then
     cpu_cores=$(nproc 2>/dev/null || grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo "1")
     cpu_arch=$(uname -m)
 
-    ram_spec=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
-    [ -z "$ram_spec" ] && ram_spec=$(free -m | awk '/Mem:/ {printf "%.1f GB", $2/1024}')
-    swap_spec=$(free -h 2>/dev/null | awk '/^Swap:/ {print $2}')
-    if [ -z "$swap_spec" ] || [ "$swap_spec" = "0B" ] || [ "$swap_spec" = "0" ]; then
+    ram_raw=$(free -h --si 2>/dev/null | awk '/^Mem:/ {print $2}')
+    [ -z "$ram_raw" ] && ram_raw=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
+    [ -z "$ram_raw" ] && ram_raw=$(free -m 2>/dev/null | awk '/Mem:/ {printf "%.1f GB", $2/1024}')
+    ram_spec=$(echo "$ram_raw" | sed -e 's/Gi/ GB/g' -e 's/Mi/ MB/g' -e 's/G$/ GB/' -e 's/M$/ MB/' | xargs)
+
+    swap_raw=$(free -h --si 2>/dev/null | awk '/^Swap:/ {print $2}')
+    [ -z "$swap_raw" ] && swap_raw=$(free -h 2>/dev/null | awk '/^Swap:/ {print $2}')
+    swap_spec=$(echo "$swap_raw" | sed -e 's/Gi/ GB/g' -e 's/Mi/ MB/g' -e 's/G$/ GB/' -e 's/M$/ MB/' | xargs)
+    if [ -z "$swap_spec" ] || [ "$swap_spec" = "0B" ] || [ "$swap_spec" = "0" ] || [ "$swap_spec" = "0 MB" ] || [ "$swap_spec" = "0 GB" ]; then
         swap_spec="None"
     fi
 
     disk_spec=$(df -h / 2>/dev/null | awk 'NR==2{print $2}')
+    disk_spec=$(echo "$disk_spec" | sed -e 's/G$/ GB/' -e 's/M$/ MB/' -e 's/T$/ TB/' | xargs)
     disk_fs=$(df -T / 2>/dev/null | awk 'NR==2{print $2}')
     [ -z "$disk_fs" ] && disk_fs="ext4"
 
