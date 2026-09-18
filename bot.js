@@ -111,7 +111,12 @@ async function fetchStats(vps, onSpawn) {
         child.on('error', () => finish(null));
         child.on('close', (code) => {
             if (code !== 0) return finish(null);
-            finish(stdout.replace(/\x1b\[[0-9;]*m/g, ''));
+            let cleaned = stdout.replace(/\x1b\[[0-9;]*m/g, '');
+            const marker = cleaned.indexOf('╔');
+            if (marker !== -1) {
+                cleaned = cleaned.substring(marker);
+            }
+            finish(cleaned.trim());
         });
 
         // Kirim isi script monitor.sh via stdin

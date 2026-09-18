@@ -82,6 +82,52 @@ CACHEOF
     fi
 fi
 
+# Spesifikasi VPS (dengan cache agar update real-time tetap instan)
+SPEC_CACHE="/tmp/.vps_spec_cache"
+if [ -f "$SPEC_CACHE" ]; then
+    source "$SPEC_CACHE" 2>/dev/null
+fi
+
+if [ -z "$cpu_model" ] || [ -z "$cpu_cores" ] || [ -z "$ram_spec" ]; then
+    cpu_raw=$(grep -m1 "model name" /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs)
+    [ -z "$cpu_raw" ] && cpu_raw=$(lscpu 2>/dev/null | awk -F: '/Model name/ {print $2}' | xargs)
+    if echo "$cpu_raw" | grep -qi "virtual"; then
+        cpu_model=$(echo "$cpu_raw" | sed -e 's/([A-Za-z]*)//g' -e 's/  */ /g' -e 's/@.*//' | xargs)
+    else
+        cpu_model=$(echo "$cpu_raw" | sed -e 's/([A-Za-z]*)//g' -e 's/  */ /g' -e 's/@.*//' -e 's/ Processor//' -e 's/Xeon CPU /Xeon /' -e 's/ CPU / /' | xargs)
+    fi
+    cpu_cores=$(nproc 2>/dev/null || grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo "1")
+    cpu_arch=$(uname -m)
+
+    ram_spec=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')
+    [ -z "$ram_spec" ] && ram_spec=$(free -m | awk '/Mem:/ {printf "%.1f GB", $2/1024}')
+    swap_spec=$(free -h 2>/dev/null | awk '/^Swap:/ {print $2}')
+    if [ -z "$swap_spec" ] || [ "$swap_spec" = "0B" ] || [ "$swap_spec" = "0" ]; then
+        swap_spec="None"
+    fi
+
+    disk_spec=$(df -h / 2>/dev/null | awk 'NR==2{print $2}')
+    disk_fs=$(df -T / 2>/dev/null | awk 'NR==2{print $2}')
+    [ -z "$disk_fs" ] && disk_fs="ext4"
+
+    virt_type=$(systemd-detect-virt 2>/dev/null || echo "kvm")
+    [ "$virt_type" = "none" ] && virt_type="Dedicated"
+    virt_type=$(echo "$virt_type" | tr '[:lower:]' '[:upper:]')
+    kernel_ver=$(uname -r | cut -d- -f1,2)
+
+    cat > "$SPEC_CACHE" 2>/dev/null <<SPECEOF
+cpu_model="$cpu_model"
+cpu_cores="$cpu_cores"
+cpu_arch="$cpu_arch"
+ram_spec="$ram_spec"
+swap_spec="$swap_spec"
+disk_spec="$disk_spec"
+disk_fs="$disk_fs"
+virt_type="$virt_type"
+kernel_ver="$kernel_ver"
+SPECEOF
+fi
+
 # CPU
 cpu_load=$(top -bn1 | grep 'Cpu(s)' | awk '{print $2+$4}' | cut -d. -f1)
 [ -z "$cpu_load" ] && cpu_load=0
@@ -166,6 +212,14 @@ cat << ENDOUT
    Uptime  : $uptime_str
    Load    : $load_avg
    Proses  : $proc_count aktif
+────────────────────────────
+⚙️ SPESIFIKASI VPS
+   CPU     : $cpu_model
+   Core    : $cpu_cores Core ($cpu_arch)
+   RAM     : $ram_spec | Swap: $swap_spec
+   Storage : $disk_spec ($disk_fs)
+   Virt    : $virt_type
+   Kernel  : $kernel_ver
 ────────────────────────────
 📊 RESOURCE USAGE
 $cpu_status CPU   [${cpu_bar}] ${cpu_load}%
