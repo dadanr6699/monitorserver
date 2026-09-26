@@ -23,6 +23,55 @@ if (!fs.existsSync(GLOBAL_SERVERS_FILE)) fs.writeFileSync(GLOBAL_SERVERS_FILE, '
 
 let userState = {};
 let liveSessions = {};
+const SPEEDTEST_SCRIPT = path.join(__dirname, 'speedtest.py');
+let isSpeedtestRunning = false;
+
+function formatSpeed(bps) {
+    if (!bps || isNaN(bps)) return '0.00 Mbps';
+    if (bps >= 1e9) {
+        return `${(bps / 1e9).toFixed(2)} Gbps`;
+    }
+    return `${(bps / 1e6).toFixed(2)} Mbps`;
+}
+
+function isLocalHost(ip) {
+    return !ip || ip === '38.47.191.227' || ip === '127.0.0.1' || ip === 'localhost';
+}
+
+function getSpeedtestHeaderText() {
+    return [
+        '🚀 <b>VPS SPEEDTEST BENCHMARK</b>',
+        '<blockquote>🌐 <b>Network Throughput & Latency Test</b>',
+        '• ⚡ <b>Indikator</b> : <code>Ping, Download, Upload, ISP</code>',
+        '• 🔒 <b>Akses</b> : <code>Main Admin</code></blockquote>',
+        '',
+        '👇 <i>Pilih server VPS yang ingin diuji kecepatannya:</i>'
+    ].join('\n');
+}
+
+function getSpeedtestMenu() {
+    const servers = getGlobalServers();
+    const keyboard = [];
+
+    if (servers.length === 0) {
+        keyboard.push([
+            { text: '📍 Host VPS (Lokal)', callback_data: 'speedtest_exec:__host__' }
+        ]);
+    } else {
+        for (let i = 0; i < servers.length; i += 2) {
+            const row = [
+                { text: `🖥️ ${servers[i].name.toUpperCase()}`, callback_data: `speedtest_exec:${servers[i].name}` }
+            ];
+            if (i + 1 < servers.length) {
+                row.push({ text: `🖥️ ${servers[i + 1].name.toUpperCase()}`, callback_data: `speedtest_exec:${servers[i + 1].name}` });
+            }
+            keyboard.push(row);
+        }
+    }
+
+    keyboard.push([{ text: '🔙 Kembali ke Menu Utama', callback_data: 'back_to_menu' }]);
+    return { inline_keyboard: keyboard };
+}
 
 function getGlobalServers() {
     try { return JSON.parse(fs.readFileSync(GLOBAL_SERVERS_FILE)); } catch (e) { return []; }
@@ -30,6 +79,240 @@ function getGlobalServers() {
 
 function saveGlobalServers(servers) {
     fs.writeFileSync(GLOBAL_SERVERS_FILE, JSON.stringify(servers, null, 2));
+}
+
+async function executeSpeedtest(vps) {
+    return new Promise((resolve) => {
+        let child;
+        const isLocal = !vps || !vps.ip || isLocalHost(vps.ip);
+
+        if (isLocal) {
+            child = spawn('python3', [SPEEDTEST_SCRIPT, '--share', '--json'], {
+                timeout: 90000
+            });
+        } else {
+            const port = vps.port || '22';
+            const args = [
+                '-e', 'ssh',
+                '-p', port,
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'ConnectTimeout=10',
+                `${vps.user}@${vps.ip}`,
+                'python3 - --share --json'
+            ];
+            child = spawn('sshpass', args, {
+                env: { ...process.env, SSHPASS: vps.pass },
+                timeout: 90000
+            });
+            try {
+                const stream = fs.createReadStream(SPEEDTEST_SCRIPT);
+                stream.on('error', () => {});
+                stream.pipe(child.stdin);
+            } catch (e) {}
+        }
+
+        let stdout = '';
+        let stderr = '';
+        let done = false;
+        const finish = (result) => {
+            if (!done) {
+                done = true;
+                resolve(result);
+            }
+        };
+
+        if (child.stdin) {
+            child.stdin.on('error', () => {});
+        }
+        child.stdout.on('data', (d) => { stdout += d.toString(); });
+        child.stderr.on('data', (d) => { stderr += d.toString(); });
+
+        child.on('error', (err) => finish({ success: false, error: err.message }));
+
+        child.on('close', (code) => {
+            try {
+                const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    return finish({
+                        success: false,
+                        error: stderr.trim() || `Gagal membaca output pengujian (exit code ${code}).`
+                    });
+                }
+                const data = JSON.parse(jsonMatch[0]);
+                finish({ success: true, data });
+            } catch (err) {
+                finish({ success: false, error: `Gagal membaca data hasil speedtest: ${err.message}` });
+            }
+        });
+    });
+}
+
+async function handleSpeedtestRun(chatId, messageId, targetName) {
+    if (isSpeedtestRunning) {
+        return bot.sendMessage(chatId, '⚠️ <i>Speedtest sedang berjalan! Harap tunggu pengujian sebelumnya selesai.</i>', { parse_mode: 'HTML' });
+    }
+
+    isSpeedtestRunning = true;
+    stopLive(chatId);
+
+    const servers = getGlobalServers();
+    let vps = null;
+    let displayName = 'Host VPS (Lokal)';
+    let serverKey = '__host__';
+
+    if (targetName && targetName !== '__host__') {
+        vps = servers.find(s => s.name.toLowerCase() === targetName.toLowerCase());
+        if (vps) {
+            displayName = vps.name.toUpperCase();
+            serverKey = vps.name;
+        }
+    } else if (servers.length > 0) {
+        const hostMatch = servers.find(s => isLocalHost(s.ip));
+        if (hostMatch) {
+            vps = hostMatch;
+            displayName = hostMatch.name.toUpperCase();
+            serverKey = hostMatch.name;
+        }
+    }
+
+    const loadingText = [
+        '⏳ <b>Sedang Melakukan Speedtest...</b>',
+        '',
+        `<blockquote>🖥️ <b>Server Target</b> : <code>${displayName}</code>`,
+        '🌐 <b>Proses</b> : <i>Menghubungkan server, mengukur Ping, Download & Upload...</i>',
+        '⏱️ <b>Estimasi</b> : <i>20 - 40 detik</i></blockquote>',
+        '',
+        '<i>Mohon tunggu sebentar sampai proses selesai...</i>'
+    ].join('\n');
+
+    let currentMsgId = messageId;
+    if (currentMsgId) {
+        try {
+            await bot.editMessageText(loadingText, {
+                chat_id: chatId,
+                message_id: currentMsgId,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
+                }
+            });
+        } catch (e) {
+            const sent = await bot.sendMessage(chatId, loadingText, {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
+                }
+            });
+            currentMsgId = sent.message_id;
+        }
+    } else {
+        const sent = await bot.sendMessage(chatId, loadingText, {
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
+            }
+        });
+        currentMsgId = sent.message_id;
+    }
+
+    try {
+        const result = await executeSpeedtest(vps);
+
+        const failKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: '🔄 Coba Lagi', callback_data: `speedtest_exec:${serverKey}` },
+                    { text: '📋 Pilih VPS Lain', callback_data: 'menu_speedtest' }
+                ],
+                [
+                    { text: '🏠 Menu Utama', callback_data: 'back_to_menu' }
+                ]
+            ]
+        };
+
+        if (!result.success) {
+            const failText = [
+                '❌ <b>Speedtest Gagal</b>',
+                '',
+                `<blockquote>🖥️ <b>Server</b> : <code>${displayName}</code>`,
+                `⚠️ <b>Keterangan</b> : <code>${result.error || 'Timeout atau koneksi gagal'}</code></blockquote>`,
+                '',
+                '<i>Silakan periksa kembali koneksi server atau coba lagi.</i>'
+            ].join('\n');
+
+            await bot.editMessageText(failText, {
+                chat_id: chatId,
+                message_id: currentMsgId,
+                parse_mode: 'HTML',
+                reply_markup: failKeyboard
+            }).catch(() => {
+                bot.sendMessage(chatId, failText, { parse_mode: 'HTML', reply_markup: failKeyboard });
+            });
+            return;
+        }
+
+        const data = result.data;
+        const dl = formatSpeed(data.download);
+        const ul = formatSpeed(data.upload);
+        const ping = data.ping !== undefined ? `${Number(data.ping).toFixed(1)} ms` : '-';
+        const clientIp = data.client?.ip || (vps ? vps.ip : '-');
+        const clientIsp = data.client?.isp || '-';
+        const clientCountry = data.client?.country || '';
+        const srvName = data.server?.name || '-';
+        const srvCountry = data.server?.country || '';
+        const srvSponsor = data.server?.sponsor || '-';
+        const srvDist = data.server?.d ? `${Number(data.server.d).toFixed(0)} km` : '';
+        const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false }) + ' WIB';
+
+        const resultCard = [
+            '🚀 <b>HASIL SPEEDTEST VPS</b>',
+            '',
+            `<blockquote>🖥️ <b>Server VPS</b> : <code>${displayName}</code>`,
+            `🌐 <b>IP Address</b> : <code>${clientIp}</code>`,
+            `🏢 <b>ISP</b> : <code>${clientIsp}${clientCountry ? ` (${clientCountry})` : ''}</code>`,
+            `📍 <b>Server Uji</b> : <code>${srvName}, ${srvCountry} (${srvSponsor})${srvDist ? ` ~${srvDist}` : ''}</code>`,
+            `⚡ <b>Ping / Latensi</b> : <code>${ping}</code>`,
+            `📥 <b>Download</b> : <code>${dl}</code>`,
+            `📤 <b>Upload</b> : <code>${ul}</code>`,
+            `🕐 <b>Waktu Uji</b> : <code>${now}</code></blockquote>`
+        ].join('\n');
+
+        const successKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: '🔄 Uji Lagi', callback_data: `speedtest_exec:${serverKey}` },
+                    { text: '📋 Pilih VPS Lain', callback_data: 'menu_speedtest' }
+                ],
+                [
+                    { text: '🏠 Menu Utama', callback_data: 'back_to_menu' }
+                ]
+            ]
+        };
+
+        if (data.share) {
+            try {
+                await bot.deleteMessage(chatId, currentMsgId).catch(() => {});
+                await bot.sendPhoto(chatId, data.share, {
+                    caption: resultCard,
+                    parse_mode: 'HTML',
+                    reply_markup: successKeyboard
+                });
+                return;
+            } catch (err) {}
+        }
+
+        await bot.editMessageText(resultCard, {
+            chat_id: chatId,
+            message_id: currentMsgId,
+            parse_mode: 'HTML',
+            reply_markup: successKeyboard
+        }).catch(() => {
+            bot.sendMessage(chatId, resultCard, { parse_mode: 'HTML', reply_markup: successKeyboard });
+        });
+
+    } finally {
+        isSpeedtestRunning = false;
+    }
 }
 
 function getMainMenu(chatId) {
@@ -51,6 +334,9 @@ function getMainMenu(chatId) {
     }
 
     if (chatId === ADMIN_ID) {
+        keyboard.push([
+            { text: '🚀 Speedtest VPS', callback_data: 'menu_speedtest' }
+        ]);
         if (servers.length > 0) {
             keyboard.push([
                 { text: '➕ Tambah VPS', callback_data: 'start_add_flow' },
@@ -216,6 +502,33 @@ async function startLive(chatId, msgId, name) {
     updateLoop();
 }
 
+bot.onText(/\/(speedtest|speed|teskecepatan)(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (chatId !== ADMIN_ID) {
+        return bot.sendMessage(chatId, '🚫 <b>Akses Ditolak:</b> Fitur ini khusus Admin.', { parse_mode: 'HTML' });
+    }
+    stopLive(chatId);
+    const arg = match[2] ? match[2].trim() : null;
+    if (!arg) {
+        return bot.sendMessage(chatId, getSpeedtestHeaderText(), {
+            parse_mode: 'HTML',
+            reply_markup: getSpeedtestMenu()
+        });
+    }
+
+    const servers = getGlobalServers();
+    const vps = servers.find(s => s.name.toLowerCase() === arg.toLowerCase());
+    if (!vps && arg.toLowerCase() !== 'host' && arg.toLowerCase() !== 'lokal') {
+        return bot.sendMessage(chatId, `⚠️ Server <b>${arg}</b> tidak ditemukan.\n\nSilakan pilih dari daftar server berikut:`, {
+            parse_mode: 'HTML',
+            reply_markup: getSpeedtestMenu()
+        });
+    }
+
+    const targetName = vps ? vps.name : '__host__';
+    handleSpeedtestRun(chatId, null, targetName);
+});
+
 bot.onText(/\/(start|vital|monitor|menu|cancel)/, async (msg) => {
     stopLive(msg.chat.id);
     delete userState[msg.chat.id];
@@ -264,12 +577,70 @@ bot.on('callback_query', async (query) => {
         stopLive(chatId);
         delete userState[chatId];
         bot.answerCallbackQuery(query.id).catch(() => {});
-        bot.editMessageText(getHeaderText(chatId), {
-            chat_id: chatId,
-            message_id: msgId,
-            parse_mode: 'HTML',
-            reply_markup: getMainMenu(chatId)
-        }).catch(() => {});
+        if (query.message.photo) {
+            bot.deleteMessage(chatId, msgId).catch(() => {});
+            bot.sendMessage(chatId, getHeaderText(chatId), {
+                parse_mode: 'HTML',
+                reply_markup: getMainMenu(chatId)
+            }).catch(() => {});
+        } else {
+            bot.editMessageText(getHeaderText(chatId), {
+                chat_id: chatId,
+                message_id: msgId,
+                parse_mode: 'HTML',
+                reply_markup: getMainMenu(chatId)
+            }).catch(() => {
+                bot.sendMessage(chatId, getHeaderText(chatId), {
+                    parse_mode: 'HTML',
+                    reply_markup: getMainMenu(chatId)
+                }).catch(() => {});
+            });
+        }
+    }
+
+    if (data === 'menu_speedtest') {
+        if (chatId !== ADMIN_ID) return bot.answerCallbackQuery(query.id, { text: '🚫 Akses Ditolak' });
+        stopLive(chatId);
+        bot.answerCallbackQuery(query.id).catch(() => {});
+        if (query.message.photo) {
+            bot.deleteMessage(chatId, msgId).catch(() => {});
+            bot.sendMessage(chatId, getSpeedtestHeaderText(), {
+                parse_mode: 'HTML',
+                reply_markup: getSpeedtestMenu()
+            }).catch(() => {});
+        } else {
+            bot.editMessageText(getSpeedtestHeaderText(), {
+                chat_id: chatId,
+                message_id: msgId,
+                parse_mode: 'HTML',
+                reply_markup: getSpeedtestMenu()
+            }).catch(() => {
+                bot.sendMessage(chatId, getSpeedtestHeaderText(), {
+                    parse_mode: 'HTML',
+                    reply_markup: getSpeedtestMenu()
+                }).catch(() => {});
+            });
+        }
+    }
+
+    if (data.startsWith('speedtest_exec:')) {
+        if (chatId !== ADMIN_ID) return bot.answerCallbackQuery(query.id, { text: '🚫 Akses Ditolak' });
+        if (isSpeedtestRunning) {
+            return bot.answerCallbackQuery(query.id, {
+                text: '⚠️ Speedtest sedang berjalan! Harap tunggu pengujian sebelumnya selesai.',
+                show_alert: true
+            });
+        }
+        const targetName = data.substring('speedtest_exec:'.length);
+        bot.answerCallbackQuery(query.id, { text: '🚀 Memulai speedtest...' }).catch(() => {});
+        stopLive(chatId);
+
+        if (query.message.photo) {
+            bot.deleteMessage(chatId, msgId).catch(() => {});
+            handleSpeedtestRun(chatId, null, targetName);
+        } else {
+            handleSpeedtestRun(chatId, msgId, targetName);
+        }
     }
 
     if (data === 'start_add_flow') {
@@ -810,6 +1181,17 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         return res.end(getWebDashboardHTML());
+    }
+
+    if (url.pathname === '/api/speedtest') {
+        const name = url.searchParams.get('name');
+        let vps = null;
+        if (name && name !== '__host__') {
+            vps = getGlobalServers().find(s => s.name === name);
+        }
+        const result = await executeSpeedtest(vps);
+        res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(result));
     }
 
     if (url.pathname === '/api/servers') {
