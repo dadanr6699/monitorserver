@@ -47,7 +47,7 @@ Bot Telegram untuk memantau performa VPS (CPU, RAM, DISK, Network) secara **Real
 * **🌐 Web Dashboard** — Akses monitoring via browser (default `http://IP_SERVER:3000`).
 * **🖥️ Multi-Server** — Pantau banyak VPS sekaligus dalam satu bot & web.
 * **🛡️ Secure Connection** — Koneksi SSH menggunakan argumen aman (`sshpass -e`), aman dari kebocoran password di process list (`ps`).
-* **🔑 Admin & Public Mode** — Menu manajemen (Tambah/Hapus) khusus Admin di Telegram.
+* **🔑 Admin & Public Mode** — Menu manajemen (Tambah/Edit/Hapus) khusus Admin di Telegram.
 
 ---
 
@@ -96,8 +96,10 @@ pm2 startup
 ### 🎮 Cara Penggunaan
 1. Buka bot di Telegram, kirim `/start`.
 2. Klik **➕ Tambah VPS** (Khusus Admin) untuk mendaftarkan server baru.
-3. Klik nama server pada daftar untuk mulai memantau live.
-4. Klik **⏹️ Stop Monitor** atau **Back** untuk kembali ke menu utama.
+3. Klik **✏️ Edit VPS** (Khusus Admin) untuk mengubah konfigurasi server yang sudah terdaftar (Nama, IP, Port, Username, Password).
+4. Klik **🗑️ Hapus VPS** (Khusus Admin) untuk menghapus server dari daftar monitoring.
+5. Klik nama server pada daftar untuk mulai memantau live.
+6. Klik **⏹️ Stop Monitor** atau **Back** untuk kembali ke menu utama.
 
 ---
 

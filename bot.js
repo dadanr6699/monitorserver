@@ -51,11 +51,17 @@ function getMainMenu(chatId) {
     }
 
     if (chatId === ADMIN_ID) {
-        const adminRow = [{ text: '➕ Tambah VPS', callback_data: 'start_add_flow' }];
         if (servers.length > 0) {
-            adminRow.push({ text: '🗑️ Hapus VPS', callback_data: 'menu_del' });
+            keyboard.push([
+                { text: '➕ Tambah VPS', callback_data: 'start_add_flow' },
+                { text: '✏️ Edit VPS', callback_data: 'menu_edit' }
+            ]);
+            keyboard.push([
+                { text: '🗑️ Hapus VPS', callback_data: 'menu_del' }
+            ]);
+        } else {
+            keyboard.push([{ text: '➕ Tambah VPS', callback_data: 'start_add_flow' }]);
         }
-        keyboard.push(adminRow);
     }
     return { inline_keyboard: keyboard };
 }
@@ -210,8 +216,9 @@ async function startLive(chatId, msgId, name) {
     updateLoop();
 }
 
-bot.onText(/\/(start|vital|monitor|menu)/, async (msg) => {
+bot.onText(/\/(start|vital|monitor|menu|cancel)/, async (msg) => {
     stopLive(msg.chat.id);
+    delete userState[msg.chat.id];
     bot.sendMessage(msg.chat.id, getHeaderText(msg.chat.id), {
         parse_mode: 'HTML',
         reply_markup: getMainMenu(msg.chat.id)
@@ -255,6 +262,7 @@ bot.on('callback_query', async (query) => {
 
     if (data === 'back_to_menu') {
         stopLive(chatId);
+        delete userState[chatId];
         bot.answerCallbackQuery(query.id).catch(() => {});
         bot.editMessageText(getHeaderText(chatId), {
             chat_id: chatId,
@@ -270,6 +278,128 @@ bot.on('callback_query', async (query) => {
         userState[chatId] = { step: 'NAME', data: {} };
         const sent = await bot.sendMessage(chatId, '🆕 *TAMBAH VPS BARU*\n\n📋 Masukkan *Nama VPS*:', { parse_mode: 'Markdown' });
         userState[chatId].lastBotMsgId = sent.message_id;
+    }
+
+    if (data === 'menu_edit') {
+        if (chatId !== ADMIN_ID) return bot.answerCallbackQuery(query.id, { text: '🚫 Akses Ditolak' });
+        delete userState[chatId];
+        const gServers = getGlobalServers();
+        if (gServers.length === 0) {
+            return bot.answerCallbackQuery(query.id, { text: 'Belum ada VPS terdaftar' });
+        }
+        bot.answerCallbackQuery(query.id);
+        const editKeyboard = [];
+        for (let i = 0; i < gServers.length; i += 2) {
+            const row = [{ text: `✏️ ${gServers[i].name}`, callback_data: `select_edit:${gServers[i].name}` }];
+            if (i + 1 < gServers.length) {
+                row.push({ text: `✏️ ${gServers[i + 1].name}`, callback_data: `select_edit:${gServers[i + 1].name}` });
+            }
+            editKeyboard.push(row);
+        }
+        editKeyboard.push([{ text: '🔙 Kembali ke Menu', callback_data: 'back_to_menu' }]);
+        bot.editMessageText('✏️ <b>EDIT VPS</b>\n\nPilih VPS yang ingin diedit datanya:', {
+            chat_id: chatId,
+            message_id: msgId,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: editKeyboard }
+        }).catch(() => {});
+    }
+
+    if (data.startsWith('select_edit:')) {
+        if (chatId !== ADMIN_ID) return bot.answerCallbackQuery(query.id, { text: '🚫 Akses Ditolak' });
+        delete userState[chatId];
+        const name = data.substring('select_edit:'.length);
+        const vps = getGlobalServers().find(s => s.name === name);
+        if (!vps) return bot.answerCallbackQuery(query.id, { text: 'VPS tidak ditemukan' });
+        bot.answerCallbackQuery(query.id);
+
+        const vpsCard = [
+            `⚙️ <b>EDIT VPS: ${vps.name.toUpperCase()}</b>`,
+            '',
+            '<blockquote>📋 <b>Konfigurasi Saat Ini:</b>',
+            `• <b>Nama</b> : <code>${vps.name}</code>`,
+            `• <b>IP</b>   : <code>${vps.ip}</code>`,
+            `• <b>Port</b> : <code>${vps.port || '22'}</code>`,
+            `• <b>User</b> : <code>${vps.user}</code>`,
+            `• <b>Pass</b> : <code>••••••••</code></blockquote>`,
+            '',
+            '👇 <i>Pilih data yang ingin diubah:</i>'
+        ].join('\n');
+
+        const editOptionsKeyboard = [
+            [
+                { text: '📋 Ubah Nama', callback_data: `edit_fld:name:${vps.name}` },
+                { text: '🌐 Ubah IP', callback_data: `edit_fld:ip:${vps.name}` }
+            ],
+            [
+                { text: '🔌 Ubah Port', callback_data: `edit_fld:port:${vps.name}` },
+                { text: '👤 Ubah User', callback_data: `edit_fld:user:${vps.name}` }
+            ],
+            [
+                { text: '🔑 Ubah Password', callback_data: `edit_fld:pass:${vps.name}` }
+            ],
+            [
+                { text: '🔙 Kembali', callback_data: 'menu_edit' },
+                { text: '🏠 Menu Utama', callback_data: 'back_to_menu' }
+            ]
+        ];
+
+        bot.editMessageText(vpsCard, {
+            chat_id: chatId,
+            message_id: msgId,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: editOptionsKeyboard }
+        }).catch(() => {});
+    }
+
+    if (data.startsWith('edit_fld:')) {
+        if (chatId !== ADMIN_ID) return bot.answerCallbackQuery(query.id, { text: '🚫 Akses Ditolak' });
+        const parts = data.split(':');
+        const field = parts[1];
+        const name = parts.slice(2).join(':');
+        const vps = getGlobalServers().find(s => s.name === name);
+        if (!vps) return bot.answerCallbackQuery(query.id, { text: 'VPS tidak ditemukan' });
+
+        bot.answerCallbackQuery(query.id);
+
+        userState[chatId] = {
+            action: 'EDIT',
+            targetName: name,
+            field: field,
+            editMsgId: msgId
+        };
+
+        const fieldLabels = {
+            name: { title: 'NAMA VPS', desc: 'Nama VPS baru', hint: 'Contoh: Herza SG, SG-Node2', current: vps.name },
+            ip: { title: 'IP ADDRESS', desc: 'IP Address baru', hint: 'Contoh: 38.47.191.227', current: vps.ip },
+            port: { title: 'PORT SSH', desc: 'Port SSH baru', hint: 'Ketik angka port, misal: 22 atau 22022', current: vps.port || '22' },
+            user: { title: 'USERNAME SSH', desc: 'Username SSH baru', hint: 'Contoh: root, ubuntu', current: vps.user },
+            pass: { title: 'PASSWORD SSH', desc: 'Password SSH baru', hint: 'Ketikkan password SSH baru', current: '••••••••' }
+        };
+
+        const fInfo = fieldLabels[field] || { title: field.toUpperCase(), desc: field, hint: '', current: vps[field] || '-' };
+
+        const promptText = [
+            `✏️ <b>EDIT ${fInfo.title}</b> (<code>${name}</code>)`,
+            '',
+            `• Nilai saat ini : <code>${fInfo.current}</code>`,
+            `• Keterangan    : ${fInfo.hint}`,
+            '',
+            `💬 <i>Ketikkan <b>${fInfo.desc}</b> di chat sekarang:</i>`
+        ].join('\n');
+
+        const cancelKeyboard = {
+            inline_keyboard: [
+                [{ text: '🔙 Batal Edit', callback_data: `select_edit:${name}` }]
+            ]
+        };
+
+        bot.editMessageText(promptText, {
+            chat_id: chatId,
+            message_id: msgId,
+            parse_mode: 'HTML',
+            reply_markup: cancelKeyboard
+        }).catch(() => {});
     }
 
     if (data === 'menu_del') {
@@ -314,6 +444,100 @@ bot.on('message', async (msg) => {
     if (!state) return;
 
     try { bot.deleteMessage(chatId, msg.message_id); } catch (e) {}
+
+    // Handle Edit Flow
+    if (state.action === 'EDIT') {
+        const val = msg.text.trim();
+        const srvs = getGlobalServers();
+        const idx = srvs.findIndex(s => s.name === state.targetName);
+
+        if (idx === -1) {
+            delete userState[chatId];
+            return bot.sendMessage(chatId, '❌ <b>VPS tidak ditemukan atau sudah dihapus.</b>', {
+                parse_mode: 'HTML',
+                reply_markup: getMainMenu(chatId)
+            });
+        }
+
+        if (state.field === 'name') {
+            if (!val) return;
+            const duplicate = srvs.find(s => s.name.toLowerCase() === val.toLowerCase() && s.name !== state.targetName);
+            if (duplicate) {
+                const warnText = [
+                    `⚠️ <b>Nama VPS Sudah Digunakan!</b>`,
+                    '',
+                    `Nama <code>${val}</code> sudah digunakan oleh server lain.`,
+                    'Silakan ketik nama lain di chat:'
+                ].join('\n');
+                return bot.editMessageText(warnText, {
+                    chat_id: chatId,
+                    message_id: state.editMsgId,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [[{ text: '🔙 Batal Edit', callback_data: `select_edit:${state.targetName}` }]]
+                    }
+                }).catch(() => {});
+            }
+            srvs[idx].name = val;
+        } else if (state.field === 'ip') {
+            if (!val) return;
+            srvs[idx].ip = val;
+        } else if (state.field === 'port') {
+            srvs[idx].port = /^[0-9]+$/.test(val) ? val : '22';
+        } else if (state.field === 'user') {
+            if (!val) return;
+            srvs[idx].user = val;
+        } else if (state.field === 'pass') {
+            if (!val) return;
+            srvs[idx].pass = val;
+        }
+
+        saveGlobalServers(srvs);
+        const updatedName = srvs[idx].name;
+        const updatedVps = srvs[idx];
+        delete userState[chatId];
+
+        const successText = [
+            `✅ <b>Data VPS Berhasil Diperbarui!</b>`,
+            '',
+            '<blockquote>📋 <b>Konfigurasi Terbaru:</b>',
+            `• <b>Nama</b> : <code>${updatedVps.name}</code>`,
+            `• <b>IP</b>   : <code>${updatedVps.ip}</code>`,
+            `• <b>Port</b> : <code>${updatedVps.port || '22'}</code>`,
+            `• <b>User</b> : <code>${updatedVps.user}</code>`,
+            `• <b>Pass</b> : <code>••••••••</code></blockquote>`
+        ].join('\n');
+
+        const successKeyboard = {
+            inline_keyboard: [
+                [{ text: '✏️ Edit Field Lain', callback_data: `select_edit:${updatedName}` }],
+                [{ text: '📋 Daftar Server', callback_data: 'menu_edit' }],
+                [{ text: '🏠 Menu Utama', callback_data: 'back_to_menu' }]
+            ]
+        };
+
+        if (state.editMsgId) {
+            bot.editMessageText(successText, {
+                chat_id: chatId,
+                message_id: state.editMsgId,
+                parse_mode: 'HTML',
+                reply_markup: successKeyboard
+            }).catch(() => {
+                bot.sendMessage(chatId, successText, {
+                    parse_mode: 'HTML',
+                    reply_markup: successKeyboard
+                });
+            });
+        } else {
+            bot.sendMessage(chatId, successText, {
+                parse_mode: 'HTML',
+                reply_markup: successKeyboard
+            });
+        }
+        return;
+    }
+
+    // Handle Add Flow
     if (state.lastBotMsgId) { try { bot.deleteMessage(chatId, state.lastBotMsgId); } catch (e) {} }
 
     if (state.step === 'NAME') {
