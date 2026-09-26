@@ -147,6 +147,103 @@ async function executeSpeedtest(vps) {
     });
 }
 
+const SPINNERS = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const ICONS = ['🛰️', '📡', '⚡', '🚀', '💫', '📶'];
+
+function renderProgressBar(percent, length = 10) {
+    const filled = Math.min(length, Math.max(0, Math.round((percent / 100) * length)));
+    const empty = length - filled;
+    return '▰'.repeat(filled) + '▱'.repeat(empty);
+}
+
+function getAnimationState(elapsed) {
+    let percent = 5;
+    let phaseText = 'Inisialisasi koneksi &amp; server discovery...';
+    let phaseShort = 'Handshake';
+    let handshake = '⚡ CONNECTING';
+    let ping = '⏳ PENDING';
+    let dl = '⏳ PENDING';
+    let ul = '⏳ PENDING';
+    let report = '⏳ PENDING';
+
+    if (elapsed < 4) {
+        percent = Math.min(22, 5 + elapsed * 4.2);
+        phaseText = 'Inisialisasi koneksi &amp; server discovery...';
+        phaseShort = 'Handshake';
+        handshake = '⚡ CONNECTING';
+    } else if (elapsed < 9) {
+        percent = Math.min(45, 22 + (elapsed - 4) * 4.6);
+        phaseText = 'Mendeteksi server terdekat &amp; menguji Ping...';
+        phaseShort = 'Ping & Latensi';
+        handshake = '✅ CONNECTED';
+        ping = '⚡ MEASURING...';
+    } else if (elapsed < 20) {
+        percent = Math.min(74, 45 + (elapsed - 9) * 2.7);
+        phaseText = 'Stress-test throughput Download bandwidth...';
+        phaseShort = 'Download Test';
+        handshake = '✅ CONNECTED';
+        ping = '✅ PASSED';
+        dl = '📥 TESTING...';
+    } else if (elapsed < 30) {
+        percent = Math.min(94, 74 + (elapsed - 20) * 2.0);
+        phaseText = 'Stress-test throughput Upload bandwidth...';
+        phaseShort = 'Upload Test';
+        handshake = '✅ CONNECTED';
+        ping = '✅ PASSED';
+        dl = '✅ PASSED';
+        ul = '📤 TESTING...';
+    } else {
+        percent = 97;
+        phaseText = 'Mengompilasi hasil &amp; merender sertifikat...';
+        phaseShort = 'Finalisasi';
+        handshake = '✅ CONNECTED';
+        ping = '✅ PASSED';
+        dl = '✅ PASSED';
+        ul = '✅ PASSED';
+        report = '📊 GENERATING...';
+    }
+
+    return {
+        percent: Math.round(percent),
+        phaseText,
+        phaseShort,
+        handshake,
+        ping,
+        dl,
+        ul,
+        report
+    };
+}
+
+function buildLoadingCard(displayName, elapsed, frameIndex) {
+    const spinner = SPINNERS[frameIndex % SPINNERS.length];
+    const icon = ICONS[frameIndex % ICONS.length];
+    const state = getAnimationState(elapsed);
+    const bar = renderProgressBar(state.percent, 10);
+
+    return [
+        `⚡ <b>VPS SPEEDTEST BENCHMARK</b> [ <code>${spinner}</code> ]`,
+        '',
+        `<blockquote>🖥️ <b>Server Target</b> : <code>${displayName}</code>`,
+        `📊 <b>Progress</b>      : <code>${bar} ${state.percent}%</code>`,
+        `⏱️ <b>Waktu Berjalan</b> : <code>${elapsed} detik</code>`,
+        `📡 <b>Tahap Uji</b>     : <i>${state.phaseText}</i></blockquote>`,
+        '',
+        `<blockquote><pre>`,
+        `┌── [ NETWORK BENCHMARK FLOW ] ───`,
+        `│ 🔌 SSH Link     : ${state.handshake}`,
+        `│ ⚡ Latency Ping  : ${state.ping}`,
+        `│ 📥 Download Flow : ${state.dl}`,
+        `│ 📤 Upload Flow   : ${state.ul}`,
+        `│ 📊 Speed Report  : ${state.report}`,
+        `└─────────────────────────────────`,
+        `</pre></blockquote>`,
+        '',
+        `<i>${icon} Server sedang menguji bandwidth secara realtime. Mohon tunggu...</i>`
+    ].join('\n');
+}
+
+
 async function handleSpeedtestRun(chatId, messageId, targetName) {
     if (isSpeedtestRunning) {
         return bot.sendMessage(chatId, '⚠️ <i>Speedtest sedang berjalan! Harap tunggu pengujian sebelumnya selesai.</i>', { parse_mode: 'HTML' });
@@ -175,48 +272,71 @@ async function handleSpeedtestRun(chatId, messageId, targetName) {
         }
     }
 
-    const loadingText = [
-        '⏳ <b>Sedang Melakukan Speedtest...</b>',
-        '',
-        `<blockquote>🖥️ <b>Server Target</b> : <code>${displayName}</code>`,
-        '🌐 <b>Proses</b> : <i>Menghubungkan server, mengukur Ping, Download & Upload...</i>',
-        '⏱️ <b>Estimasi</b> : <i>20 - 40 detik</i></blockquote>',
-        '',
-        '<i>Mohon tunggu sebentar sampai proses selesai...</i>'
-    ].join('\n');
+    const initialCard = buildLoadingCard(displayName, 0, 0);
+    const initialButton = [{ text: '⠋ Menguji: Inisialisasi (0s)...', callback_data: 'none' }];
 
     let currentMsgId = messageId;
     if (currentMsgId) {
         try {
-            await bot.editMessageText(loadingText, {
+            await bot.editMessageText(initialCard, {
                 chat_id: chatId,
                 message_id: currentMsgId,
                 parse_mode: 'HTML',
                 reply_markup: {
-                    inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
+                    inline_keyboard: [initialButton]
                 }
             });
         } catch (e) {
-            const sent = await bot.sendMessage(chatId, loadingText, {
+            try {
+                const sent = await bot.sendMessage(chatId, initialCard, {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [initialButton]
+                    }
+                });
+                currentMsgId = sent.message_id;
+            } catch (err) {}
+        }
+    } else {
+        try {
+            const sent = await bot.sendMessage(chatId, initialCard, {
                 parse_mode: 'HTML',
                 reply_markup: {
-                    inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
+                    inline_keyboard: [initialButton]
                 }
             });
             currentMsgId = sent.message_id;
-        }
-    } else {
-        const sent = await bot.sendMessage(chatId, loadingText, {
-            parse_mode: 'HTML',
-            reply_markup: {
-                inline_keyboard: [[{ text: '⏳ Menguji Jaringan...', callback_data: 'none' }]]
-            }
-        });
-        currentMsgId = sent.message_id;
+        } catch (err) {}
     }
+
+    let isRunning = true;
+    const startTime = Date.now();
+    let frame = 0;
+
+    const animTimer = setInterval(async () => {
+        if (!isRunning || !currentMsgId) return;
+        frame++;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const state = getAnimationState(elapsed);
+        const card = buildLoadingCard(displayName, elapsed, frame);
+        const spinner = SPINNERS[frame % SPINNERS.length];
+
+        try {
+            await bot.editMessageText(card, {
+                chat_id: chatId,
+                message_id: currentMsgId,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [[{ text: `${spinner} Menguji: ${state.phaseShort} (${elapsed}s)...`, callback_data: 'none' }]]
+                }
+            });
+        } catch (err) {}
+    }, 2500);
 
     try {
         const result = await executeSpeedtest(vps);
+        isRunning = false;
+        clearInterval(animTimer);
 
         const failKeyboard = {
             inline_keyboard: [
@@ -291,12 +411,12 @@ async function handleSpeedtestRun(chatId, messageId, targetName) {
 
         if (data.share) {
             try {
-                await bot.deleteMessage(chatId, currentMsgId).catch(() => {});
                 await bot.sendPhoto(chatId, data.share, {
                     caption: resultCard,
                     parse_mode: 'HTML',
                     reply_markup: successKeyboard
                 });
+                await bot.deleteMessage(chatId, currentMsgId).catch(() => {});
                 return;
             } catch (err) {}
         }
@@ -311,6 +431,8 @@ async function handleSpeedtestRun(chatId, messageId, targetName) {
         });
 
     } finally {
+        isRunning = false;
+        clearInterval(animTimer);
         isSpeedtestRunning = false;
     }
 }
